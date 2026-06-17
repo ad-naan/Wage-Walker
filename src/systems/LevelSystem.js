@@ -145,9 +145,9 @@ export class LevelSystem {
     }
     const z = game._createZombie(type, row);
     if (hpMul > 1) { z.maxHp = z.hp = Math.round(z.hp * hpMul); }
-    // Lv3 甲方需求变更频率翻倍
+    // Lv3 甲方需求变更频率翻倍(每1.5步后退，而非3步)
     if (this.currentLevel.flags && this.currentLevel.flags.clientDoubleRevert && type === 'client') {
-      z.distWalked = 0; // 重置使其更快触发
+      z.revertThreshold = 1.5;
     }
     game.zombies.push(z);
   }

@@ -378,8 +378,10 @@ export class Zombie {
   }
 
   // 甲方僵尸：每走3步突然变向/后退(模拟需求变更)
+  // Lv3 clientDoubleRevert 时 revertThreshold=1.5(频率翻倍)
   specialClient(dt, game) {
-    if (this.revertTimer <= 0 && this.distWalked >= 3) {
+    const threshold = this.revertThreshold || 3;
+    if (this.revertTimer <= 0 && this.distWalked >= threshold) {
       this.distWalked = 0;
       this.revertTimer = 0.8 + Math.random() * 0.6;
       game.toast('甲方改需求了！僵尸后退中…');
@@ -424,7 +426,7 @@ export class Zombie {
             target = alive[Math.floor(Math.random() * alive.length)];
           }
           target.dead = true;
-          game.spawnDeathParticles(target.mesh.position.clone());
+          game.particles.spawnDeath(game.grid.group, target.mesh.position.clone());
           const name = target.cfg ? target.cfg.name : '一颗植物';
           game.toast('💀 老板巡视！直接开除' + name + '！');
           game.playSound('basehit');
