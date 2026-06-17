@@ -14,6 +14,7 @@ import { LevelSystem } from './systems/LevelSystem.js';
 import { LevelUI } from './ui/LevelUI.js';
 import { PLANT_TYPES } from './entities/Plant.js';
 import { createPlant } from './entities/PlantFactory.js';
+import { createZombie } from './entities/Zombie.js';
 import { tweenManager } from './utils/Tween.js';
 import { GridDebugger } from './utils/GridDebugger.js';
 
@@ -121,7 +122,7 @@ class Game {
     this.ui.setCards(cards);
   }
 
-  _createZombie(type, row) { return makeZombie(this.grid.group, type, row, this.grid); }
+  _createZombie(type, row) { return createZombie(this.grid.group, type, row, this.grid); }
 
   createPlant(type, row, col) { return createPlant(this.grid.group, type, row, col, this.grid); }
   playSound(type) { this.audio.play(type); }

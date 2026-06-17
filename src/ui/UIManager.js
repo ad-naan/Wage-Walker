@@ -169,6 +169,39 @@ export class UIManager {
   onStart(cb) { this.startBtn.addEventListener('click', () => { this.hideOverlay(); cb(); }); }
   _handleCardClick(type) { if (this.onCardClick) this.onCardClick(type); }
 
+  /** 动态替换卡片栏(关卡切换时调用) */
+  setCards(cardsConfig) {
+    this.cardsConfig = cardsConfig;
+    const bar = document.getElementById('card-bar');
+    if (!bar) return;
+    bar.innerHTML = '';
+    this.cardEls = {};
+    for (const c of this.cardsConfig) {
+      const card = document.createElement('div');
+      const cls = c.isSpecial ? 'card special-card' : c.isUlt ? 'card ult-card' : c.isTicket ? 'card ticket-card' : c.isSkill ? 'card skill-card' : 'card';
+      card.className = cls;
+      card.dataset.type = c.type;
+      let costText;
+      if (c.isUlt) costText = '怒' + c.rageCost;
+      else if (c.isTicket) costText = '🎫' + c.ticketCost;
+      else if (c.cost === 0) costText = '免费';
+      else costText = '🐟' + c.cost;
+      card.innerHTML = `
+        <div class="card-icon">${c.icon}</div>
+        <div class="card-name">${c.name}</div>
+        <div class="card-cost">${costText}</div>
+        <div class="card-cd hidden"></div>`;
+      if (!c.isSkill && !c.isUlt && !c.isTicket) {
+        card.draggable = true;
+        card.addEventListener('dragstart', (e) => this._onCardDragStart(e, c.type));
+      } else {
+        card.addEventListener('click', () => this._handleCardClick(c.type));
+      }
+      bar.appendChild(card);
+      this.cardEls[c.type] = card;
+    }
+  }
+
   /** 植物卡片拖拽开始：只显示图标作为拖拽图像 */
   _onCardDragStart(e, type) {
     this._dragType = type;
