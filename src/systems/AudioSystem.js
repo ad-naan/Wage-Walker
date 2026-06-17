@@ -29,8 +29,11 @@ export class AudioSystem {
       die:     { wave: 'sawtooth', f0: 300, f1: 70,  dur: 0.30, vol: 0.16 },
       produce: { wave: 'sine',     f0: 500, f1: 900, dur: 0.15, vol: 0.12 },
       basehit: { wave: 'square',   f0: 110, f1: 70,  dur: 0.22, vol: 0.18 },
-      spawn:   { wave: 'sawtooth', f0: 80,  f1: 200, dur: 0.25, vol: 0.12 },
-      boss:    { wave: 'sawtooth', f0: 60,  f1: 160, dur: 0.50, vol: 0.20 },
+      // 僵尸生成音效：每种僵尸音色不同
+      spawn_client:  { wave: 'triangle', f0: 180, f1: 320, dur: 0.18, vol: 0.12 }, // 甲方：轻快上扬
+      spawn_kpi:     { wave: 'square',   f0: 100, f1: 250, dur: 0.22, vol: 0.14 }, // KPI：刺耳警报感
+      spawn_boss:    { wave: 'sawtooth', f0: 55,  f1: 140, dur: 0.50, vol: 0.20 }, // 老板：低沉威压
+      spawn_traitor: { wave: 'sawtooth', f0: 70,  f1: 180, dur: 0.40, vol: 0.18 }, // 工贼：阴森
     };
     const p = presets[type] || presets.shoot;
     osc.type = p.wave;
