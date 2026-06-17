@@ -52,3 +52,7 @@ npm run preview  # 预览构建产物
 ## 方向约定
 
 僵尸从左侧（col<0）生成，向 +x 方向移动，进攻右侧（col≥cols）工位基地；弹丸向 +x 发射。
+
+![alt text](image.png)
+![alt text](image-1.png)
+![alt text](image-2.png)
