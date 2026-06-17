@@ -450,7 +450,7 @@ export class Zombie {
     }
   }
 
-  // 工贼老板(终极Boss)：出现时全屏变暗 + 每1.5秒让向日葵变工贼消失+扣30摸鱼值
+  // 工贼老板(终极Boss)：出现时全屏变暗 + 定期让向日葵叛变成普通僵尸+扣30摸鱼值
   specialTraitor(dt, game) {
     if (!this._traitorNotified) {
       this._traitorNotified = true;
@@ -460,7 +460,8 @@ export class Zombie {
       game.ui.toast('😈 终极Boss工贼老板降临！全场变暗，向日葵们开始动摇…');
     }
     this._traitorActionTimer += dt;
-    const interval = this._traitorInterval || 1.5;
+    // 策反间隔至少10秒，避免过快
+    const interval = this._traitorInterval || 10;
     if (this._traitorActionTimer < interval) return;
     this._traitorActionTimer = 0;
     // 应急日报系统免疫策反
@@ -471,13 +472,21 @@ export class Zombie {
     const suns = game.plants.filter((p) => !p.dead && p.type === 'sunflower');
     if (suns.length === 0) return;
     const t = suns[Math.floor(Math.random() * suns.length)];
+    const pos = t.mesh.position.clone();
+    const row = t.row;
+    // 向日葵叛变消失
     t.dead = true;
-    game.particles.spawnDeath(game.grid.group, t.mesh.position.clone());
+    game.particles.spawnDeath(game.grid.group, pos);
     game.resource.add(-30);
-    const p = t.mesh.position.clone(); p.y += 1.5;
+    const p = pos.clone(); p.y += 1.5;
     game.effects.spawnFloatText(game.grid.group, p, '工贼!-30🐟', '#9a4dff');
-    game.ui.toast('😈 向日葵变工贼跑了！摸鱼值-30');
+    game.ui.toast('😈 向日葵叛变成为甲方僵尸！摸鱼值-30');
     game.audio.play('die');
+    // 叛变的向日葵变成普通甲方僵尸，从原位置继续前进
+    const z = createZombie(game.grid.group, 'client', row, game.grid);
+    z.mesh.position.x = pos.x;
+    z.mesh.position.z = pos.z;
+    game.zombies.push(z);
   }
 
   takeDamage(d) {
