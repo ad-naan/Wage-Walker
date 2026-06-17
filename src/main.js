@@ -9,7 +9,8 @@ import { AudioSystem } from './systems/AudioSystem.js';
 import { ParticleSystem } from './systems/ParticleSystem.js';
 import { EffectSystem } from './systems/EffectSystem.js';
 import { InteractionSystem } from './systems/InteractionSystem.js';
-import { createPlant, PLANT_TYPES } from './entities/Plant.js';
+import { PLANT_TYPES } from './entities/Plant.js';
+import { createPlant } from './entities/PlantFactory.js';
 import { createZombie as makeZombie } from './entities/Zombie.js';
 import { tweenManager } from './utils/Tween.js';
 import { GridDebugger } from './utils/GridDebugger.js';
@@ -136,23 +137,28 @@ class Game {
   _onCardClick(type) {
     if (!this.running) return;
     const cfg = PLANT_TYPES[type];
-
     if (cfg.isSkill) {
       if (this.clock < (this.cardCooldowns[type] || 0)) { this.ui.toast('技能冷却中…'); return; }
       if (type === 'hammer') { this._toggleHammer(); return; }
-      if (type === 'shield') { this._useShield(cfg); return; }
-      if (type === 'heal')   { this._useHeal(cfg); return; }
-      if (type === 'ult')    { this._useUlt(cfg); return; }
+      if (!this.resource.canAfford(cfg.cost) && cfg.cost > 0) { this.ui.toast('摸鱼值不足！'); return; }
+      if (cfg.cost > 0) this.resource.spend(cfg.cost);
+      this._setSkillCD(type, cfg.cd);
+      if (type === 'shield') {
+        this.shieldCount = 5; this.ui.setShield(5);
+        this.ui.toast('🛡️ 工位护盾开启！抵挡接下来5次攻击'); this.audio.play('plant');
+      } else if (type === 'heal') {
+        this.effects.healAllPlants(this, 0.2);
+        this.ui.toast('💊 全员回血！所有植物恢复20%血量'); this.audio.play('produce');
+      } else if (type === 'ult') {
+        this.effects.ultShuaigu(this);
+      }
       return;
     }
-
     // 植物卡片
-    this.hammerMode = false;
-    this.ui.setHammerMode(false);
+    this.hammerMode = false; this.ui.setHammerMode(false);
     if (this.clock < (this.cardCooldowns[type] || 0)) { this.ui.toast('卡片冷却中…'); return; }
     if (!this.resource.canAfford(cfg.cost)) { this.ui.toast('摸鱼值不足！'); return; }
-    this.ui.selectCard(type);
-    this.selectedCard = type;
+    this.ui.selectCard(type); this.selectedCard = type;
   }
 
   _toggleHammer() {
@@ -160,41 +166,15 @@ class Game {
     this.hammerMode = !this.hammerMode;
     if (this.hammerMode) {
       if (!this.resource.canAfford(cfg.cost)) { this.ui.toast('摸鱼值不足！'); this.hammerMode = false; return; }
-      this.ui.selectCard('hammer');
-      this.ui.setHammerMode(true);
+      this.ui.selectCard('hammer'); this.ui.setHammerMode(true);
       this.selectedCard = null;
       this.ui.toast('锤子已就绪！点牛头幽灵打断/点僵尸定身');
-    } else {
-      this.ui.clearSelection();
-      this.ui.setHammerMode(false);
-    }
+    } else { this.ui.clearSelection(); this.ui.setHammerMode(false); }
   }
 
-  _useShield(cfg) {
-    if (!this.resource.canAfford(cfg.cost)) { this.ui.toast('摸鱼值不足！'); return; }
-    this.resource.spend(cfg.cost);
-    this.shieldCount = 5;
-    this.cardCooldowns['shield'] = this.clock + cfg.cd;
-    this.ui.setCardCooldown('shield', this.clock + cfg.cd);
-    this.ui.setShield(this.shieldCount);
-    this.ui.toast('🛡️ 工位护盾开启！抵挡接下来5次攻击');
-    this.audio.play('plant');
-  }
-
-  _useHeal(cfg) {
-    if (!this.resource.canAfford(cfg.cost)) { this.ui.toast('摸鱼值不足！'); return; }
-    this.resource.spend(cfg.cost);
-    this.cardCooldowns['heal'] = this.clock + cfg.cd;
-    this.ui.setCardCooldown('heal', this.clock + cfg.cd);
-    this.effects.healAllPlants(this, 0.2);
-    this.ui.toast('💊 全员回血！所有植物恢复20%血量');
-    this.audio.play('produce');
-  }
-
-  _useUlt(cfg) {
-    this.cardCooldowns['ult'] = this.clock + cfg.cd;
-    this.ui.setCardCooldown('ult', this.clock + cfg.cd);
-    this.effects.ultShuaigu(this);
+  _setSkillCD(type, cd) {
+    this.cardCooldowns[type] = this.clock + cd;
+    this.ui.setCardCooldown(type, this.clock + cd);
   }
 
   // ---------- 游戏开始/重置 ----------

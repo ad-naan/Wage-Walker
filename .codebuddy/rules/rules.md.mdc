@@ -1,0 +1,10 @@
+---
+description: 
+alwaysApply: true
+enabled: true
+updatedAt: 2026-06-17T13:21:36.983Z
+provider: 
+---
+
+每次修改以后都要提交代码
+每个文件不允许超500行，超过就要拆分
