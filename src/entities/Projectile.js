@@ -14,6 +14,9 @@ export class Projectile {
     this.row = null;
     this.dead = false;
     this.big = big;
+    this.isApproval = false; // 审批单弹丸(带减速效果)
+    this.slowMul = 0.5;
+    this.slowDuration = 3;
 
     if (big) {
       // 年终总结大炮弹：金色大方块 + 标题贴图

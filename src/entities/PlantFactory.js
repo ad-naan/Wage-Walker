@@ -2,6 +2,7 @@ import { Plant } from './Plant.js';
 import { Sunflower } from './Sunflower.js';
 import { Peashooter } from './Peashooter.js';
 import { Wallnut } from './Wallnut.js';
+import { Auditor } from './Auditor.js';
 
 /**
  * 工厂：根据类型创建植物实例
@@ -12,6 +13,7 @@ export function createPlant(scene, type, row, col, grid) {
     case 'sunflower':  return new Sunflower(scene, type, row, col, grid);
     case 'peashooter': return new Peashooter(scene, type, row, col, grid);
     case 'wallnut':    return new Wallnut(scene, type, row, col, grid);
+    case 'auditor':    return new Auditor(scene, type, row, col, grid);
     default: return null;
   }
 }

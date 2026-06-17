@@ -6,9 +6,10 @@ import * as THREE from 'three';
  * 约定：僵尸从左侧房区生成，向右移动进攻右侧工位基地，模型朝向 +x。
  */
 export const ZOMBIE_TYPES = {
-  client: { name: '甲方僵尸', hp: 120, speed: 0.5,  suit: 0xff8fb0, skin: 0xffd9c0, hair: 0x4a2a1a, damage: 18 },
-  boss:   { name: '老板僵尸', hp: 220, speed: 0.36, suit: 0xd4a017, skin: 0xffe0b0, hair: 0x202020, damage: 22 },
-  kpi:    { name: 'KPI僵尸',  hp: 160, speed: 0.6,  suit: 0xe53935, skin: 0xffd0c0, hair: 0x1a1a1a, damage: 20 },
+  client:  { name: '甲方僵尸', hp: 120, speed: 0.5,  suit: 0xff8fb0, skin: 0xffd9c0, hair: 0x4a2a1a, damage: 18 },
+  boss:    { name: '老板僵尸', hp: 220, speed: 0.36, suit: 0xd4a017, skin: 0xffe0b0, hair: 0x202020, damage: 22 },
+  kpi:     { name: 'KPI僵尸',  hp: 160, speed: 0.6,  suit: 0xe53935, skin: 0xffd0c0, hair: 0x1a1a1a, damage: 20 },
+  traitor: { name: '工贼老板', hp: 180, speed: 0.45, suit: 0x6a1b9a, skin: 0xffe0b0, hair: 0x101010, damage: 20 },
 };
 
 /**
@@ -129,6 +130,7 @@ export class Zombie {
     if (this.type === 'client') this.buildClient(suitMat, darkMat);
     else if (this.type === 'boss') this.buildBoss(suitMat, darkMat, hairMat);
     else if (this.type === 'kpi') this.buildKpi(suitMat, darkMat);
+    else if (this.type === 'traitor') this.buildTraitor(suitMat, darkMat, hairMat);
 
     // 血条(挂在外层 this.mesh,始终朝镜头 +z, 不随模型旋转)
     this._makeHpBar();
@@ -137,62 +139,48 @@ export class Zombie {
     this._makeStunStars();
   }
 
-  // 甲方僵尸：领带 + 公文包 + 圆框眼镜
+  // 甲方僵尸：领带+公文包+圆框眼镜
   buildClient(suitMat, darkMat) {
-    // 领带(正面 +z)
     const tieMat = new THREE.MeshLambertMaterial({ color: 0xc0392b });
     this._part(new THREE.BoxGeometry(0.06, 0.34, 0.02), tieMat, 0, 0.82, 0.21);
     this._part(new THREE.ConeGeometry(0.07, 0.12, 4), tieMat, 0, 0.6, 0.21);
-    // 圆框眼镜
     const frameMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
     this._part(new THREE.TorusGeometry(0.06, 0.012, 6, 14), frameMat, -0.08, 0.02, 0.22, this.head, false);
     this._part(new THREE.TorusGeometry(0.06, 0.012, 6, 14), frameMat, 0.08, 0.02, 0.22, this.head, false);
-    // 公文包(右手)
     const caseMat = new THREE.MeshLambertMaterial({ color: 0x5d4037 });
     this._part(new THREE.BoxGeometry(0.26, 0.18, 0.1), caseMat, 0, -0.18, 0.32, this.armR.children[0]);
     this._part(new THREE.BoxGeometry(0.12, 0.02, 0.06), new THREE.MeshLambertMaterial({ color: 0xffd700 }), 0, 0.1, 0, this.armR.children[0]);
   }
 
-  // 老板僵尸：礼帽 + 大肚腩 + 雪茄 + 胸前领结
+  // 老板僵尸：礼帽+大肚腩+雪茄+领结
   buildBoss(suitMat, darkMat, hairMat) {
-    // 大肚腩(前置球, +z 正面)
     const bellyMat = new THREE.MeshLambertMaterial({ color: this.cfg.suit });
     this.mainMaterials.push(bellyMat);
     this._part(new THREE.SphereGeometry(0.22, 12, 10), bellyMat, 0, 0.72, 0.18);
-    // 礼帽
     const hatMat = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
     this._part(new THREE.CylinderGeometry(0.16, 0.16, 0.16, 16), hatMat, 0, 0.26, 0, this.head);
     this._part(new THREE.CylinderGeometry(0.26, 0.26, 0.03, 18), hatMat, 0, 0.18, 0, this.head);
-    const bandMat = new THREE.MeshLambertMaterial({ color: 0xd4a017 });
-    this._part(new THREE.CylinderGeometry(0.165, 0.165, 0.03, 16), bandMat, 0, 0.2, 0, this.head);
-    // 领结
+    this._part(new THREE.CylinderGeometry(0.165, 0.165, 0.03, 16), new THREE.MeshLambertMaterial({ color: 0xd4a017 }), 0, 0.2, 0, this.head);
     const bowMat = new THREE.MeshLambertMaterial({ color: 0x8e0000 });
     this._part(new THREE.BoxGeometry(0.1, 0.05, 0.03), bowMat, -0.04, 1.1, 0.21);
     this._part(new THREE.BoxGeometry(0.1, 0.05, 0.03), bowMat, 0.04, 1.1, 0.21);
     this._part(new THREE.BoxGeometry(0.03, 0.06, 0.03), bowMat, 0, 1.1, 0.21);
-    // 雪茄(嘴角, +z 正脸)
-    const cigarMat = new THREE.MeshLambertMaterial({ color: 0x6d4c41 });
-    const cigar = this._part(new THREE.CylinderGeometry(0.015, 0.015, 0.14, 8), cigarMat, 0.1, -0.12, 0.2, this.head, false);
+    const cigar = this._part(new THREE.CylinderGeometry(0.015, 0.015, 0.14, 8), new THREE.MeshLambertMaterial({ color: 0x6d4c41 }), 0.1, -0.12, 0.2, this.head, false);
     cigar.rotation.z = Math.PI / 2;
-    const ash = this._part(new THREE.SphereGeometry(0.018, 6, 6), new THREE.MeshStandardMaterial({ color: 0xff5500, emissive: 0xff3300, emissiveIntensity: 1 }), 0.17, -0.12, 0.2, this.head, false);
-    this.cigarGlow = ash;
+    this.cigarGlow = this._part(new THREE.SphereGeometry(0.018, 6, 6), new THREE.MeshStandardMaterial({ color: 0xff5500, emissive: 0xff3300, emissiveIntensity: 1 }), 0.17, -0.12, 0.2, this.head, false);
   }
 
-  // KPI僵尸：背上的业绩图表板 + 头顶 KPI 牌 + 领带
+  // KPI僵尸：背图表板+头顶KPI牌+领带
   buildKpi(suitMat, darkMat) {
-    // 背后图表板(背面 -z)
     const board = new THREE.Group(); board.position.set(0, 1.0, -0.28); this.model.add(board);
     this._part(new THREE.BoxGeometry(0.4, 0.3, 0.03), new THREE.MeshLambertMaterial({ color: 0xfafafa }), 0, 0, 0, board);
-    // 柱状图(红/黄/绿)
     const bars = [0xff4d4d, 0xffcc33, 0x33cc66];
     for (let i = 0; i < 3; i++) {
       this._part(new THREE.BoxGeometry(0.07, 0.08 + i * 0.05, 0.02), new THREE.MeshLambertMaterial({ color: bars[i] }), -0.12 + i * 0.12, -0.05, 0.02, board);
     }
-    // 板支架
     this._part(new THREE.BoxGeometry(0.02, 0.4, 0.02), darkMat, 0, -0.25, 0, board);
-    // 头顶 KPI 牌
     const signMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
-    const sign = this._part(new THREE.BoxGeometry(0.3, 0.12, 0.03), signMat, 0, 0.34, 0, this.head, false);
+    this._part(new THREE.BoxGeometry(0.3, 0.12, 0.03), signMat, 0, 0.34, 0, this.head, false);
     this._part(new THREE.CylinderGeometry(0.012, 0.012, 0.12, 6), darkMat, 0, 0.26, 0, this.head, false);
     // 用 canvas 文字贴 "KPI" —— 朝镜头(+z)显示, 抵消模型 Y 旋转
     const tex = this._makeTextTexture('KPI', '#e53935');
@@ -206,6 +194,19 @@ export class Zombie {
     // 红领带
     const tieMat = new THREE.MeshLambertMaterial({ color: 0xb71c1c });
     this._part(new THREE.BoxGeometry(0.06, 0.32, 0.02), tieMat, 0, 0.82, 0.21);
+  }
+
+  // 工贼老板：紫色领带+小皇冠+卷宗
+  buildTraitor(suitMat, darkMat, hairMat) {
+    const tieMat = new THREE.MeshLambertMaterial({ color: 0x6a1b9a });
+    this._part(new THREE.BoxGeometry(0.06, 0.34, 0.02), tieMat, 0, 0.82, 0.21);
+    const crownMat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0x886600, emissiveIntensity: 0.3 });
+    const cb = this._part(new THREE.CylinderGeometry(0.12, 0.12, 0.03, 10), crownMat, 0, 0.26, 0, this.head, false);
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2;
+      this._part(new THREE.ConeGeometry(0.04, 0.1, 4), crownMat, Math.cos(a) * 0.1, 0.32, Math.sin(a) * 0.1, this.head, false);
+    }
+    this._part(new THREE.BoxGeometry(0.18, 0.14, 0.04), new THREE.MeshLambertMaterial({ color: 0xffeb3b }), 0, -0.18, 0.32, this.armR.children[0]);
   }
 
   _makeTextTexture(text, color) {
@@ -226,14 +227,8 @@ export class Zombie {
   _makeHpBar() {
     const g = new THREE.Group();
     g.position.set(0, 1.95, 0);
-    const bg = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.5, 0.08),
-      new THREE.MeshBasicMaterial({ color: 0x331111, transparent: true, opacity: 0.8, side: THREE.DoubleSide })
-    );
-    const fg = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.5, 0.08),
-      new THREE.MeshBasicMaterial({ color: 0x44dd44, side: THREE.DoubleSide })
-    );
+    const bg = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.08), new THREE.MeshBasicMaterial({ color: 0x331111, transparent: true, opacity: 0.8, side: THREE.DoubleSide }));
+    const fg = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.08), new THREE.MeshBasicMaterial({ color: 0x44dd44, side: THREE.DoubleSide }));
     fg.position.z = 0.001;
     g.add(bg); g.add(fg);
     this.hpBar = fg; this.hpBarGroup = g;
@@ -247,10 +242,8 @@ export class Zombie {
     this.stunGroup.visible = false;
     const starMat = new THREE.MeshBasicMaterial({ color: 0xffe066 });
     for (let i = 0; i < 3; i++) {
-      const s = new THREE.Mesh(new THREE.OctahedronGeometry(0.08), starMat);
       const a = (i / 3) * Math.PI * 2;
-      s.position.set(Math.cos(a) * 0.2, 0, Math.sin(a) * 0.2);
-      this.stunGroup.add(s);
+      this._part(new THREE.OctahedronGeometry(0.08), starMat, Math.cos(a) * 0.2, 0, Math.sin(a) * 0.2, this.stunGroup, false);
     }
     this.mesh.add(this.stunGroup);
   }
@@ -336,9 +329,11 @@ export class Zombie {
 
   _die(game) {
     this.dead = true;
-    game.spawnDeathParticles(this.mesh.position.clone());
-    game.playSound('die');
-    // Boss击杀掉落大量摸鱼值 + 减少倒计时
+    game.particles.spawnDeath(game.grid.group, this.mesh.position.clone());
+    game.audio.play('die');
+    // 击杀回调：怨气值+工时券掉落
+    if (game.onZombieKilled) game.onZombieKilled(this);
+    // Boss击杀掉落大量摸鱼值
     if (this.type === 'boss') {
       game.onBossKilled();
     }
@@ -378,6 +373,7 @@ export class Zombie {
       case 'client': this.specialClient(dt, game); break;
       case 'boss':   this.specialBoss(dt, game); break;
       case 'kpi':    this.specialKpi(dt, game); break;
+      case 'traitor': this.specialTraitor(dt, game); break;
     }
   }
 
@@ -390,12 +386,13 @@ export class Zombie {
     }
   }
 
-  // 老板僵尸：出现全屏变暗 + 光环旋转 + 每走一步有10%概率开除一颗植物
+  // 老板僵尸：光环旋转 + 每走一步有10%概率开除一颗植物(不变暗)
   specialBoss(dt, game) {
-    // 首次出现：通知game全屏变暗
+    // 首次出现：紧急警告横幅
     if (!this.bossNotified) {
       this.bossNotified = true;
-      if (game.onBossSpawn) game.onBossSpawn();
+      game.ui.showBossWarning('⚠️ 紧急！老板来巡视了！小心植物被开除！');
+      game.audio.play('basehit');
     }
     if (!this.ring) {
       this.ring = new THREE.Mesh(
@@ -451,6 +448,36 @@ export class Zombie {
     }
   }
 
+  // 工贼老板(终极Boss)：出现时全屏变暗 + 每1.5秒让向日葵变工贼消失+扣30摸鱼值
+  specialTraitor(dt, game) {
+    if (!this._traitorNotified) {
+      this._traitorNotified = true;
+      this._traitorActionTimer = 0;
+      this.bossNotified = true;
+      if (game.onBossSpawn) game.onBossSpawn(); // 触发全屏变暗
+      game.ui.toast('😈 终极Boss工贼老板降临！全场变暗，向日葵们开始动摇…');
+    }
+    this._traitorActionTimer += dt;
+    const interval = this._traitorInterval || 1.5;
+    if (this._traitorActionTimer < interval) return;
+    this._traitorActionTimer = 0;
+    // 应急日报系统免疫策反
+    if (game.items && game.items.emergencyReportTimer > 0) {
+      game.ui.toast('🛡️ 应急日报护体！向日葵未被策反');
+      return;
+    }
+    const suns = game.plants.filter((p) => !p.dead && p.type === 'sunflower');
+    if (suns.length === 0) return;
+    const t = suns[Math.floor(Math.random() * suns.length)];
+    t.dead = true;
+    game.particles.spawnDeath(game.grid.group, t.mesh.position.clone());
+    game.resource.add(-30);
+    const p = t.mesh.position.clone(); p.y += 1.5;
+    game.effects.spawnFloatText(game.grid.group, p, '工贼!-30🐟', '#9a4dff');
+    game.ui.toast('😈 向日葵变工贼跑了！摸鱼值-30');
+    game.audio.play('die');
+  }
+
   takeDamage(d) {
     // 摸鱼锤砸中：伤害翻倍
     const real = this.doubleDamage ? d * 2 : d;
@@ -459,8 +486,8 @@ export class Zombie {
   }
 
   destroy(game) {
-    // Boss消失时恢复亮度
-    if (this.type === 'boss' && this.bossNotified && game.onBossDie) {
+    // 工贼老板(终极Boss)消失时恢复亮度
+    if (this.type === 'traitor' && this.bossNotified && game.onBossDie) {
       game.onBossDie();
     }
     game.grid.group.remove(this.mesh);

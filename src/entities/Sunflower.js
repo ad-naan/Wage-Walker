@@ -41,6 +41,7 @@ export class Sunflower extends Plant {
     const interval = this.cfg.produceInterval / hpRatio;
     if (this.timer >= interval) {
       this.timer = 0;
+      // moyuMul 已含下班高峰×2 + 日报×3 + 终极摸鱼×2
       const mul = game.moyuMul || 1;
       const amount = Math.round(this.cfg.produce * mul);
       game.resource.add(amount);

@@ -2,9 +2,9 @@ import * as THREE from 'three';
 
 /**
  * 牛头指导干扰系统（核心特色）：
- * - 游戏开始后每 15-25 秒随机触发。
+ * - 游戏开始后每 40-60 秒随机触发（降低频率避免影响操作）。
  * - 弹出两条选项，选择后立即执行 buff/debuff。
- * - 8 秒未选则强制执行最坑项。
+ * - 6 秒未选则强制执行最坑项。
  * - 触发时场景中生成"牛头幽灵"，可用摸鱼锤敲碎打断(20%概率反向加班惩罚)。
  */
 export class EventSystem {
@@ -26,7 +26,7 @@ export class EventSystem {
   }
 
   _nextInterval() {
-    return 15 + Math.random() * 10; // 15-25s
+    return 40 + Math.random() * 20; // 40-60s，降低频率避免影响操作
   }
 
   _buildPool() {
@@ -95,7 +95,7 @@ export class EventSystem {
   trigger(now) {
     this.active = true;
     this.currentEvent = this.pool[Math.floor(Math.random() * this.pool.length)];
-    this.decisionEnd = now + 8;
+    this.decisionEnd = now + 6;
     this.game.ui.showNiuEvent(this.currentEvent, (idx) => this.choose(idx), this.decisionEnd);
     this._spawnGhost();
     this.game.toast('🐮 牛头指导出现了！可用摸鱼锤敲碎幽灵打断');

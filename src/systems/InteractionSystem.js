@@ -15,6 +15,35 @@ export class InteractionSystem {
 
     game.canvas.addEventListener('pointerdown', (e) => this._onPointerDown(e));
     game.canvas.addEventListener('pointerup', (e) => this._onPointerUp(e));
+
+    // 拖拽放置植物：卡片拖到 canvas 上释放
+    game.canvas.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+    game.canvas.addEventListener('drop', (e) => this._onDrop(e));
+  }
+
+  /** 拖放植物到格子上 */
+  _onDrop(e) {
+    e.preventDefault();
+    const g = this.game;
+    if (!g.running) return;
+    const type = e.dataTransfer.getData('text/plain') || g.ui._dragType;
+    if (!type) return;
+    const cfg = PLANT_TYPES[type];
+    if (!cfg || cfg.isSkill || cfg.isUlt || cfg.isTicket) return; // 非植物卡片不处理
+    // 检查冷却和费用
+    if (g.clock < (g.cardCooldowns[type] || 0)) { g.ui.toast('卡片冷却中…'); return; }
+    const cost = g.items.isUltMoyu() ? 0 : cfg.cost;
+    if (cost > 0 && !g.resource.canAfford(cost)) { g.ui.toast('摸鱼值不足！'); return; }
+    // 计算鼠标对应的格子
+    this._setMouse(e);
+    const hits = this.raycaster.intersectObjects(g.grid.getTileMeshes());
+    if (hits.length === 0) return;
+    const tile = hits[0].object;
+    const { row, col } = tile.userData;
+    // 直接种植
+    g.selectedCard = type;
+    this._tryPlant(row, col);
+    g.ui._dragType = null;
   }
 
   _setMouse(e) {
@@ -27,25 +56,6 @@ export class InteractionSystem {
     const g = this.game;
     if (!g.running) return;
     this._setMouse(e);
-
-    // ===== 锤子模式：优先敲牛头幽灵，其次敲僵尸 =====
-    if (g.hammerMode) {
-      const ghosts = g.eventSystem.getGhosts();
-      const ghostMeshes = ghosts.map((gh) => gh.mesh);
-      let hits = this.raycaster.intersectObjects(ghostMeshes, true);
-      if (hits.length > 0) {
-        const ghost = this._findGhostFromObject(hits[0].object, ghosts);
-        if (ghost) { g.eventSystem.smashGhost(ghost); return; }
-      }
-      const zombieMeshes = g.zombies.filter((z) => !z.dead).map((z) => z.mesh);
-      hits = this.raycaster.intersectObjects(zombieMeshes, true);
-      if (hits.length > 0) {
-        const zombie = this._findEntityFromObject(hits[0].object, g.zombies, 'zombie');
-        if (zombie) { this._smashZombie(zombie); return; }
-      }
-      g.ui.toast('锤子只能敲场上的牛头幽灵或僵尸');
-      return;
-    }
 
     // ===== 种植模式：点击地块放置 =====
     if (g.selectedCard) {
@@ -63,6 +73,17 @@ export class InteractionSystem {
     if (hits.length > 0) {
       const plant = this._findEntityFromObject(hits[0].object, g.plants, 'plant');
       if (plant) { this._onPlantClick(plant); return; }
+    }
+
+    // ===== 点击牛头幽灵(锤子自动触发) =====
+    const ghosts = g.eventSystem.getGhosts();
+    if (ghosts.length > 0) {
+      const ghostMeshes = ghosts.map((gh) => gh.mesh);
+      const ghostHits = this.raycaster.intersectObjects(ghostMeshes, true);
+      if (ghostHits.length > 0) {
+        const ghost = this._findGhostFromObject(ghostHits[0].object, ghosts);
+        if (ghost) { g.eventSystem.smashGhost(ghost); return; }
+      }
     }
   }
 
@@ -111,27 +132,6 @@ export class InteractionSystem {
     }
   }
 
-  /** 锤子砸僵尸：定身3秒 + 受到伤害翻倍 */
-  _smashZombie(zombie) {
-    const g = this.game;
-    if (!g.resource.canAfford(PLANT_TYPES.hammer.cost)) {
-      g.ui.toast('摸鱼值不足！需要' + PLANT_TYPES.hammer.cost + '🐟');
-      return;
-    }
-    zombie.stunned = 3;
-    zombie.doubleDamage = true;
-    g.cardCooldowns['hammer'] = g.clock + PLANT_TYPES.hammer.cd;
-    g.ui.setCardCooldown('hammer', g.clock + PLANT_TYPES.hammer.cd);
-    g.resource.spend(PLANT_TYPES.hammer.cost);
-    const p = zombie.mesh.position.clone(); p.y += 1.8;
-    g.effects.spawnFloatText(g.grid.group, p, '改PPT！', '#ff8800');
-    g.ui.toast('🔨 僵尸被强制改PPT 3秒，受伤翻倍！');
-    g.audio.play('plant');
-    g.hammerMode = false;
-    g.ui.setHammerMode(false);
-    g.ui.clearSelection();
-  }
-
   _tryPlant(row, col) {
     const g = this.game;
     const type = g.selectedCard;
@@ -139,14 +139,13 @@ export class InteractionSystem {
     if (g.grid.isOccupied(row, col)) { g.ui.toast('这里已经有植物了'); return; }
     const cfg = PLANT_TYPES[type];
     if (g.clock < (g.cardCooldowns[type] || 0)) { g.ui.toast('卡片冷却中…'); return; }
-    if (!g.resource.canAfford(cfg.cost)) { g.ui.toast('摸鱼值不足！'); return; }
-
-    g.resource.spend(cfg.cost);
+    const cost = g.items.isUltMoyu() ? 0 : cfg.cost;
+    if (cost > 0 && !g.resource.canAfford(cost)) { g.ui.toast('摸鱼值不足！'); return; }
+    if (cost > 0) g.resource.spend(cost);
     const plant = g.createPlant(type, row, col);
     g.plants.push(plant);
     g.grid.setOccupied(row, col, plant);
-    g.cardCooldowns[type] = g.clock + cfg.cd;
-    g.ui.setCardCooldown(type, g.clock + cfg.cd);
+    g._setCD(type, cfg.cd);
     g.particles.spawnPlant(g.grid.group, g.grid.gridToWorld(row, col));
     g.audio.play('plant');
     g.ui.clearSelection();

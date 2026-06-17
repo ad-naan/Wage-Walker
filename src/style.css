@@ -19,16 +19,19 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000;
   overflow: hidden; border: 1px solid #ff5d6c; }
 #base-hp-bar { height: 100%; width: 100%; background: linear-gradient(90deg,#ff5d6c,#ffb347); transition: width .3s; }
 #timer-display { color: #8effc1; font-weight: bold; font-size: 22px; min-width: 64px; }
-#timer-display.rush { color: #ff5d6c; animation: rush-pulse .5s infinite alternate; }
-@keyframes rush-pulse { from { text-shadow: 0 0 4px #ff5d6c; } to { text-shadow: 0 0 16px #ff3333; } }
+/* 关卡标题(左上角) */
+#level-title-block { background: rgba(40,30,10,.5); padding: 4px 12px; border-radius: 12px; border: 1px solid #ffb300; }
+#level-title { font-size: 15px; color: #ffd34d; font-weight: bold; }
+#wave-total { color: #9fd8ff; font-size: 13px; }
 
-/* 卡片栏(底部居中横排) */
+/* 卡片栏(底部居中横排，单行不换行) */
 #card-bar {
-  position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
-  display: flex; flex-direction: row; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 96vw;
+  position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+  display: flex; flex-direction: row; gap: 5px; flex-wrap: nowrap; justify-content: center;
+  max-width: 98vw; overflow-x: auto; overflow-y: hidden;
 }
 .card {
-  width: 84px; height: 108px; border-radius: 12px; cursor: pointer;
+  width: 76px; height: 90px; border-radius: 8px; cursor: pointer; flex-shrink: 0;
   background: linear-gradient(180deg, #2a3550, #161c2c);
   border: 2px solid #4a6090; color: #fff; position: relative;
   display: flex; flex-direction: column; align-items: center; padding: 6px 4px;
@@ -37,9 +40,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000;
 .card:hover { transform: translateY(-5px); border-color: #ffd34d; }
 .card.selected { border-color: #ffeb3b; box-shadow: 0 0 16px #ffeb3b; }
 .card.disabled { filter: grayscale(.85) brightness(.55); cursor: not-allowed; transform: none; }
-.card-icon { font-size: 30px; margin-top: 4px; }
-.card-name { font-size: 10px; text-align: center; margin-top: 3px; line-height: 1.15; }
-.card-cost { font-size: 12px; color: #ffd34d; margin-top: auto; font-weight: bold; }
+.card-icon { font-size: 24px; margin-top: 3px; }
+.card-name { font-size: 10px; text-align: center; margin-top: 2px; line-height: 1.1; }
+.card-cost { font-size: 11px; color: #ffd34d; margin-top: auto; font-weight: bold; }
 .skill-card .card-cost { color: #c9a0ff; }
 .card-cd { position: absolute; inset: 0; background: rgba(0,0,0,.55); pointer-events: none;
   display: flex; align-items: center; justify-content: center; font-size: 24px; color: #fff; font-weight: bold; }
@@ -93,9 +96,28 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000;
 .ctrl-hint { font-size: 12px; color: #888; margin-top: 18px; line-height: 1.8; text-align: center; max-width: 720px; }
 
 body.hammer-mode #game-canvas { cursor: crosshair; }
+#game-canvas { /* canvas 需要接受 drop */ }
+.card[draggable="true"]:hover { cursor: grab; }
+.card[draggable="true"]:active { cursor: grabbing; }
 #cursor-hint {
   position: absolute; pointer-events: none; z-index: 30; font-size: 30px;
   display: none; transform: translate(-50%,-50%);
+}
+
+/* 老板出现紧急警告横幅 */
+#boss-warning {
+  position: absolute; top: 64px; left: 50%; transform: translateX(-50%) translateY(-100%);
+  background: linear-gradient(90deg, #ff0000, #ff6600, #ff0000);
+  color: #fff; padding: 10px 40px; border-radius: 0 0 20px 20px;
+  font-size: 18px; font-weight: bold; text-shadow: 0 2px 4px #000;
+  z-index: 38; opacity: 0; pointer-events: none; white-space: nowrap;
+  box-shadow: 0 4px 20px rgba(255,0,0,.5);
+  transition: transform .3s, opacity .3s;
+}
+#boss-warning.show { transform: translateX(-50%) translateY(0); opacity: 1; animation: boss-warn-pulse 0.5s infinite alternate; }
+@keyframes boss-warn-pulse {
+  from { box-shadow: 0 4px 20px rgba(255,0,0,.5); }
+  to { box-shadow: 0 4px 40px rgba(255,102,0,.9); }
 }
 
 /* 老板路过屏幕变红遮罩 */
@@ -135,15 +157,122 @@ body.hammer-mode #game-canvas { cursor: crosshair; }
 .dh-section b { color: #ffd34d; }
 .dh-readout { background: rgba(0,0,0,.4); border-radius: 6px; padding: 6px 8px; color: #8effc1; font-family: monospace; font-size: 11px; }
 
-/* 下班高峰提示条 */
-#rush-banner {
-  position: absolute; top: 64px; left: 50%; transform: translateX(-50%);
-  background: linear-gradient(90deg, #ff3300, #ff6600, #ff3300);
-  color: #fff; padding: 6px 24px; border-radius: 0 0 16px 16px;
-  font-size: 14px; font-weight: bold; text-shadow: 0 1px 2px #000;
-  animation: rush-glow 1s infinite alternate; z-index: 10;
+/* 怨气值条 */
+#rage-bar {
+  position: absolute; right: 20px; top: 70px; z-index: 10;
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(20,10,20,.8); padding: 6px 12px; border-radius: 20px;
+  border: 1px solid #ff3333;
 }
-@keyframes rush-glow {
-  from { box-shadow: 0 0 10px rgba(255,51,0,.5); }
-  to { box-shadow: 0 0 24px rgba(255,102,0,.8); }
+.rage-label { font-size: 14px; }
+.rage-bg { width: 100px; height: 14px; background: #220; border-radius: 7px; overflow: hidden; }
+.rage-fill { height: 100%; width: 0%; background: linear-gradient(90deg,#ff3333,#ff6600); transition: width .3s; }
+.rage-text { font-size: 11px; color: #ff8866; min-width: 40px; }
+
+/* 大招卡片 & 工时券卡片 */
+.card.ult-card { background: linear-gradient(180deg,#3a1030,#1c0a18); border-color: #ff3333; }
+.card.ult-card .card-cost { color: #ff6644; }
+.card.ticket-card { background: linear-gradient(180deg,#2a1a40,#140a20); border-color: #9050ff; }
+.card.ticket-card .card-cost { color: #c9a0ff; }
+
+/* 白闪(团建大合照) */
+#white-flash {
+  position: absolute; inset: 0; pointer-events: none; z-index: 36;
+  background: #fff; opacity: 0;
+}
+#white-flash.show { animation: white-pulse 0.6s ease-out; }
+@keyframes white-pulse { 0%{opacity:0} 20%{opacity:0.9} 100%{opacity:0} }
+
+/* 暴雨天气遮罩 */
+#rain-overlay {
+  position: absolute; inset: 0; pointer-events: none; z-index: 33;
+  background: linear-gradient(180deg, rgba(40,60,100,.25), rgba(20,30,60,.35));
+  opacity: 0; transition: opacity .5s;
+}
+#rain-overlay.show { opacity: 1; }
+#rain-overlay.show::after {
+  content: ''; position: absolute; inset: 0;
+  background-image: repeating-linear-gradient(100deg, transparent 0, transparent 8px, rgba(150,180,220,.3) 8px, rgba(150,180,220,.3) 10px);
+  animation: rain-fall 0.3s linear infinite;
+}
+@keyframes rain-fall { from { background-position: 0 0; } to { background-position: 0 20px; } }
+
+/* 咖啡因中毒屏幕扭曲 */
+#poison-overlay {
+  position: absolute; inset: 0; pointer-events: none; z-index: 37;
+  opacity: 0; transition: opacity .3s;
+}
+#poison-overlay.show { opacity: 1; animation: poison-warp 0.4s infinite alternate; }
+@keyframes poison-warp {
+  from { filter: hue-rotate(0deg) blur(0px); transform: scale(1); }
+  to { filter: hue-rotate(60deg) blur(1px); transform: scale(1.005) skewX(0.5deg); }
+}
+
+/* ========== 选关界面 ========== */
+#level-menu {
+  position: absolute; inset: 0; z-index: 45;
+  background: radial-gradient(circle at 50% 40%, rgba(30,20,10,.92), rgba(0,0,0,.97));
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  color: #fff; padding: 40px 20px; overflow-y: auto;
+}
+#level-menu.hidden { display: none; }
+.lm-title { font-size: 38px; color: #ffd34d; text-shadow: 0 3px 0 #000; margin-bottom: 6px; }
+.lm-subtitle { font-size: 14px; color: #aaa; margin-bottom: 28px; }
+.lm-grid {
+  display: grid; grid-template-columns: repeat(3, 220px); gap: 18px;
+  max-width: 720px;
+}
+.lm-card {
+  background: linear-gradient(180deg, #2a3550, #161c2c);
+  border: 2px solid #4a6090; border-radius: 14px; padding: 16px 14px;
+  cursor: pointer; color: #fff; transition: transform .15s, border-color .15s, box-shadow .15s;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+}
+.lm-card:hover { transform: translateY(-6px); border-color: #ffd34d; box-shadow: 0 6px 24px rgba(255,211,77,.3); }
+.lm-card.locked { filter: grayscale(.9) brightness(.5); cursor: not-allowed; }
+.lm-card.locked:hover { transform: none; border-color: #4a6090; box-shadow: none; }
+.lm-card-icon { font-size: 42px; line-height: 1; margin-bottom: 6px; }
+.lm-card-num { font-size: 12px; color: #9fd8ff; }
+.lm-card-name { font-size: 18px; font-weight: bold; color: #ffd34d; margin: 2px 0 4px; }
+.lm-card-desc { font-size: 11px; color: #bbb; line-height: 1.4; min-height: 30px; }
+.lm-card-waves { font-size: 12px; color: #8effc1; margin-top: 6px; }
+
+/* ========== 关卡结算弹窗 ========== */
+#level-result {
+  position: absolute; inset: 0; z-index: 50;
+  background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center;
+}
+.lr-box {
+  background: linear-gradient(180deg, #2a2410, #14100a);
+  border: 3px solid #ffb300; border-radius: 20px; padding: 30px 40px;
+  color: #fff; text-align: center; min-width: 360px; max-width: 90vw;
+  box-shadow: 0 0 60px rgba(255,179,0,.5); animation: pop .3s ease;
+}
+.lr-grade { font-size: 48px; font-weight: bold; margin-bottom: 8px; }
+.lr-level { font-size: 18px; color: #ffd34d; margin-bottom: 12px; }
+.lr-success { font-size: 14px; color: #8effc1; margin-bottom: 10px; }
+.lr-fail { font-size: 14px; color: #ff5d6c; margin-bottom: 10px; }
+.lr-unlock { font-size: 13px; color: #c9a0ff; margin-bottom: 10px; }
+.lr-end { font-size: 15px; color: #ffd34d; margin: 10px 0; font-weight: bold; }
+.lr-btns { display: flex; gap: 12px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+.lr-btn {
+  padding: 10px 24px; font-size: 15px; border: none; border-radius: 24px;
+  cursor: pointer; font-weight: bold; transition: transform .15s;
+}
+.lr-btn:hover { transform: scale(1.06); }
+.lr-next { background: linear-gradient(180deg,#ffb300,#ff8f00); color: #1a1a1a; }
+.lr-retry { background: linear-gradient(180deg,#4a6090,#2a3550); color: #fff; }
+.lr-menu { background: linear-gradient(180deg,#555,#333); color: #fff; }
+
+/* ========== 特供道具卡片(金色边框+脉冲) ========== */
+.card.special-card {
+  border: 2px solid #ffd700;
+  background: linear-gradient(180deg, #3a2a10, #1c1408);
+  box-shadow: 0 0 12px rgba(255,215,0,.5);
+  animation: special-pulse 1.2s infinite alternate;
+}
+.card.special-card .card-cost { color: #ffd700; }
+@keyframes special-pulse {
+  from { box-shadow: 0 0 8px rgba(255,215,0,.4); }
+  to { box-shadow: 0 0 20px rgba(255,215,0,.8); }
 }

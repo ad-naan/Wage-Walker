@@ -9,26 +9,25 @@ import { AudioSystem } from './systems/AudioSystem.js';
 import { ParticleSystem } from './systems/ParticleSystem.js';
 import { EffectSystem } from './systems/EffectSystem.js';
 import { InteractionSystem } from './systems/InteractionSystem.js';
+import { ItemSystem } from './systems/ItemSystem.js';
+import { LevelSystem } from './systems/LevelSystem.js';
+import { LevelUI } from './ui/LevelUI.js';
 import { PLANT_TYPES } from './entities/Plant.js';
 import { createPlant } from './entities/PlantFactory.js';
-import { createZombie as makeZombie } from './entities/Zombie.js';
 import { tweenManager } from './utils/Tween.js';
 import { GridDebugger } from './utils/GridDebugger.js';
 
 export const CFG = {
   ROWS: 9, COLS: 15, CELL: 3.00,
-  START_RESOURCE: 50,
   BASE_HP: 100,
-  GAME_DURATION: 300,
-  RUSH_TIME: 45,
   PATROL_CHANCE: 0.15,
   PATROL_DURATION: 2,
   PATROL_PENALTY: 8,
+  RAGE_MAX: 100,
+  RAGE_PER_KILL: 8,
+  TICKET_DROP_CHANCE: 0.15,
 };
 
-/**
- * 游戏主类：初始化场景/相机/渲染器，整合各系统，驱动游戏循环。
- */
 class Game {
   constructor() {
     this.canvas = document.getElementById('game-canvas');
@@ -37,22 +36,15 @@ class Game {
     this.lastT = 0;
     this.cfg = CFG;
 
-    // 实体集合
-    this.plants = [];
-    this.zombies = [];
-    this.projectiles = [];
-
-    // 子系统
+    this.plants = []; this.zombies = []; this.projectiles = [];
     this.audio = new AudioSystem();
     this.particles = new ParticleSystem();
     this.effects = new EffectSystem();
 
-    // buff 状态
     this._atkDebuffMul = 1;  this._atkDebuffEnd = 0;
     this._atkSpeedMul = 1;   this._atkSpeedEnd = 0;
     this._zombieSlowEnd = 0;
 
-    // 卡片/技能状态
     this.cardCooldowns = {};
     this.selectedCard = null;
     this.hammerMode = false;
@@ -61,51 +53,52 @@ class Game {
     this.bossCount = 0;
     this.moyuMul = 1;
 
-    // 波次
-    this.wave = 0;
-    this.waveTimer = 6;
-    this.spawnQueue = [];
+    // 怨气值 & 工时券
+    this.rage = 0;
+    this.tickets = 0;
 
     this._initThree();
     this._initUI();
+    this.items = new ItemSystem(this);
     this.interaction = new InteractionSystem(this);
-
-    // 棋盘调试工具(默认隐藏，按H显示)
+    this.levels = new LevelSystem(this);
+    this.levelUI = new LevelUI(this.levels);
+    this.ui.setLevelUI(this.levelUI);
     this.debugger = new GridDebugger(this);
 
-    this.ui.showOverlay(null);
-    this.ui.onStart(() => this.start());
+    // 关卡UI回调
+    this.levelUI.onStartLevel = (id) => this.startLevel(id);
+    this.levelUI.onNextLevel = (id) => this.startLevel(id);
+    this.levelUI.onRetry = () => this.startLevel(this.levels.currentLevelId);
+    this.levelUI.onBackToMenu = () => { this.ui.hideOverlay(); this.levelUI.showMenu(); };
 
+    // 加载进度，显示选关界面
+    this.levels.loadProgress();
+    this.levelUI.showMenu();
     this.lastT = performance.now();
     this._loop();
   }
 
-  // ---------- Three.js 初始化 ----------
   _initThree() {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x87CEEB);
     this.scene.fog = new THREE.Fog(0x87CEEB, 60, 130);
-
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 200);
     this.camera.position.set(0, 28, 35);
     this.camera.lookAt(0, 0, 0);
-
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
     this.scene.add(new THREE.AmbientLight(0x606880, 1.1));
     const dir = new THREE.DirectionalLight(0xffffff, 1.3);
-    dir.position.set(16, 28, 12);
-    dir.castShadow = true;
+    dir.position.set(16, 28, 12); dir.castShadow = true;
     dir.shadow.mapSize.set(2048, 2048);
     dir.shadow.camera.left = -30; dir.shadow.camera.right = 30;
     dir.shadow.camera.top = 30; dir.shadow.camera.bottom = -30;
     this.scene.add(dir);
     this.scene.add(new THREE.HemisphereLight(0xb0d8ff, 0x4a7a3a, 0.5));
-
     this.grid = new GridSystem(this.scene, CFG.ROWS, CFG.COLS, CFG.CELL);
     window.addEventListener('resize', () => this._onResize());
   }
@@ -116,100 +109,123 @@ class Game {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
 
-  // ---------- UI 初始化 ----------
   _initUI() {
-    const cards = ['sunflower', 'peashooter', 'wallnut', 'hammer', 'shield', 'heal', 'ult'].map(
-      (t) => ({ type: t, ...PLANT_TYPES[t] })
-    );
-    this.ui = new UIManager(cards);
+    // 先用空列表初始化，startLevel时会重新设置
+    this.ui = new UIManager([]);
     this.ui.onCardClick = (type) => this._onCardClick(type);
   }
 
-  /** 创建植物辅助(供 InteractionSystem 调用) */
-  createPlant(type, row, col) {
-    return createPlant(this.grid.group, type, row, col, this.grid);
+  /** 根据关卡更新可用卡片 */
+  _refreshCards() {
+    const cards = this.levels.getAvailableCards();
+    this.ui.setCards(cards);
   }
 
-  /** 播放音效快捷方法 */
+  _createZombie(type, row) { return makeZombie(this.grid.group, type, row, this.grid); }
+
+  createPlant(type, row, col) { return createPlant(this.grid.group, type, row, col, this.grid); }
   playSound(type) { this.audio.play(type); }
 
   // ---------- 卡片点击 ----------
   _onCardClick(type) {
     if (!this.running) return;
     const cfg = PLANT_TYPES[type];
-    if (cfg.isSkill) {
-      if (this.clock < (this.cardCooldowns[type] || 0)) { this.ui.toast('技能冷却中…'); return; }
-      if (type === 'hammer') { this._toggleHammer(); return; }
-      if (!this.resource.canAfford(cfg.cost) && cfg.cost > 0) { this.ui.toast('摸鱼值不足！'); return; }
-      if (cfg.cost > 0) this.resource.spend(cfg.cost);
-      this._setSkillCD(type, cfg.cd);
-      if (type === 'shield') {
-        this.shieldCount = 5; this.ui.setShield(5);
-        this.ui.toast('🛡️ 工位护盾开启！抵挡接下来5次攻击'); this.audio.play('plant');
-      } else if (type === 'heal') {
-        this.effects.healAllPlants(this, 0.2);
-        this.ui.toast('💊 全员回血！所有植物恢复20%血量'); this.audio.play('produce');
-      } else if (type === 'ult') {
-        this.effects.ultShuaigu(this);
-      }
+
+    // 大招(消耗怨气值)
+    if (cfg.isUlt) {
+      if (this.rage < cfg.rageCost) { this.ui.toast('怨气值不足！'); return; }
+      this.rage -= cfg.rageCost;
+      this.ui.setRage(this.rage, CFG.RAGE_MAX);
+      this._useUlt(type);
       return;
     }
+
+    // 工时券消耗品
+    if (cfg.isTicket) {
+      if (this.tickets < cfg.ticketCost) { this.ui.toast('工时券不足！'); return; }
+      this.tickets -= cfg.ticketCost;
+      this.ui.updateTickets(this.tickets);
+      this._useTicket(type);
+      return;
+    }
+
+    // 技能类道具
+    if (cfg.isSkill) {
+      if (this.clock < (this.cardCooldowns[type] || 0)) { this.ui.toast('冷却中…'); return; }
+      // 终极摸鱼期间免费
+      const cost = this.items.isUltMoyu() ? 0 : cfg.cost;
+      if (cost > 0 && !this.resource.canAfford(cost)) { this.ui.toast('摸鱼值不足！'); return; }
+      if (cost > 0) this.resource.spend(cost);
+      this._setCD(type, cfg.cd);
+      this._useSkill(type);
+      return;
+    }
+
     // 植物卡片
     this.hammerMode = false; this.ui.setHammerMode(false);
     if (this.clock < (this.cardCooldowns[type] || 0)) { this.ui.toast('卡片冷却中…'); return; }
-    if (!this.resource.canAfford(cfg.cost)) { this.ui.toast('摸鱼值不足！'); return; }
+    const plantCost = this.items.isUltMoyu() ? 0 : cfg.cost;
+    if (plantCost > 0 && !this.resource.canAfford(plantCost)) { this.ui.toast('摸鱼值不足！'); return; }
+    if (plantCost > 0) this.resource.spend(plantCost);
     this.ui.selectCard(type); this.selectedCard = type;
   }
 
+  _setCD(type, cd) { this.cardCooldowns[type] = this.clock + cd; this.ui.setCardCooldown(type, this.clock + cd); }
+
+  _useSkill(type) {
+    if (type === 'hammer') { this.items.hammer(this); return; }
+    // 特供道具(本关限定，需校验使用次数)
+    const special = this.levels.getSpecial();
+    if (special && type === special.type) {
+      if (!this.levels.canUseSpecial()) { this.ui.toast('特供道具次数已用完！'); return; }
+      const fn = this.items[type];
+      if (fn) { fn.call(this.items, this); this.levels.useSpecial(); }
+      return;
+    }
+    const fn = { shield:1, read:1, photo:1, mine:1, tiaoxiu:1, dabing:1, coffee:1, report:1, optimize:1 }[type];
+    if (fn) this.items[type](this);
+  }
+  _useUlt(type) { if (this.items[{ ult_moyu:'ultMoyu', ult_meeting:'ultMeeting', ult_bomb:'ultBomb' }[type]]) this.items[{ ult_moyu:'ultMoyu', ult_meeting:'ultMeeting', ult_bomb:'ultBomb' }[type]](this); }
+  _useTicket(type) { const fn = { weather:'weather', readback:'readback' }[type]; if (fn) this.items[fn](this); }
+
   _toggleHammer() {
-    const cfg = PLANT_TYPES.hammer;
     this.hammerMode = !this.hammerMode;
     if (this.hammerMode) {
-      if (!this.resource.canAfford(cfg.cost)) { this.ui.toast('摸鱼值不足！'); this.hammerMode = false; return; }
       this.ui.selectCard('hammer'); this.ui.setHammerMode(true);
       this.selectedCard = null;
-      this.ui.toast('锤子已就绪！点牛头幽灵打断/点僵尸定身');
+      this.ui.toast('换鱼锤已就绪！点僵尸定身3秒+伤害翻倍');
     } else { this.ui.clearSelection(); this.ui.setHammerMode(false); }
   }
 
-  _setSkillCD(type, cd) {
-    this.cardCooldowns[type] = this.clock + cd;
-    this.ui.setCardCooldown(type, this.clock + cd);
-  }
-
-  // ---------- 游戏开始/重置 ----------
-  start() {
+  // ---------- 关卡开始 ----------
+  startLevel(levelId) {
+    this.levelUI.hideMenu();
     this.audio.ensure();
     this._clearEntities();
-    this.clock = 0;
-    this.running = true;
+    const level = this.levels.startLevel(levelId);
+    this.clock = 0; this.running = true;
     this.baseHp = CFG.BASE_HP;
-    this.resource = new ResourceSystem(this.ui, CFG.START_RESOURCE);
+    this.resource = new ResourceSystem(this.ui, level.startResource);
     this.eventSystem = new EventSystem(this);
-    this.ui.updateResource(CFG.START_RESOURCE);
+    this.items = new ItemSystem(this);
+    this._refreshCards(); // 按关卡刷新可用道具
+    this.ui.updateResource(level.startResource);
     this.ui.updateBaseHp(1);
-    this.ui.updateWave(0);
-    this.ui.updateTimer(CFG.GAME_DURATION);
-    this.ui.clearSelection();
-    this.ui.setHammerMode(false);
-    this.ui.setShield(0);
-    this.ui.setBossDarken(false);
-    this.selectedCard = null;
-    this.hammerMode = false;
-    this.cardCooldowns = {};
-    this.ui.cardCooldowns = {};
-    this.wave = 0;
-    this.waveTimer = 6;
-    this.spawnQueue = [];
-    this.patrolWarning = 0;
-    this.shieldCount = 0;
-    this.bossCount = 0;
-    this.moyuMul = 1;
+    this.ui.clearSelection(); this.ui.setHammerMode(false);
+    this.ui.setShield(0); this.ui.setBossDarken(false);
+    this.ui.setWeather(false); this.ui.setPoison(false);
+    this.ui.setRage(0, CFG.RAGE_MAX);
+    this.ui.updateTickets(this.tickets); // 工时券跨关保留
+    this.ui.showLevelInfo(level); // 显示关卡标题
+    this.selectedCard = null; this.hammerMode = false;
+    this.cardCooldowns = {}; this.ui.cardCooldowns = {};
+    this.patrolWarning = 0; this.shieldCount = 0; this.bossCount = 0;
+    this.moyuMul = 1; this.rage = 0;
     this.interaction.reset();
     this._atkDebuffMul = 1; this._atkDebuffEnd = 0;
     this._atkSpeedMul = 1;  this._atkSpeedEnd = 0;
     this._zombieSlowEnd = 0;
-    this.ui.toast('开始搬砖！坚持5分钟到下班 💪');
+    this.ui.toast(`${level.icon} 第${level.id}关：${level.name}！${level.desc}`);
   }
 
   _clearEntities() {
@@ -219,10 +235,10 @@ class Game {
     this.particles.clear(this.grid.group);
     this.effects.clear(this.grid.group);
     if (this.eventSystem) this.eventSystem.clearGhosts();
+    if (this.items) this.items.clear(this);
     this.plants = []; this.zombies = []; this.projectiles = [];
     for (let r = 0; r < CFG.ROWS; r++)
-      for (let c = 0; c < CFG.COLS; c++)
-        this.grid.setOccupied(r, c, null);
+      for (let c = 0; c < CFG.COLS; c++) this.grid.setOccupied(r, c, null);
   }
 
   // ---------- 主循环 ----------
@@ -232,7 +248,6 @@ class Game {
     let dt = (now - this.lastT) / 1000;
     this.lastT = now;
     dt = Math.min(dt, 0.05);
-
     if (this.running) this._update(dt);
     tweenManager.update(dt);
     this.renderer.render(this.scene, this.camera);
@@ -240,42 +255,40 @@ class Game {
 
   _update(dt) {
     this.clock += dt;
-
-    if (this.patrolWarning > 0) {
-      this.patrolWarning -= dt;
-      if (this.patrolWarning <= 0) this.patrolWarning = 0;
-    }
-
-    const inRush = this.clock >= CFG.GAME_DURATION - CFG.RUSH_TIME;
-    this.moyuMul = inRush ? 2 : 1;
+    if (this.patrolWarning > 0) { this.patrolWarning -= dt; if (this.patrolWarning <= 0) this.patrolWarning = 0; }
+    // 摸鱼值倍率：日报生成器×3 + 终极摸鱼×2
+    this.moyuMul = 1;
+    if (this.items.reportTimer > 0) this.moyuMul *= this.items.reportMul;
+    if (this.items.ultMoyuTimer > 0) this.moyuMul *= 2;
 
     this.resource.update(dt);
-    this._updateWaves(dt);
-    this._updateSpawnQueue();
+    this.items.update(dt, this);
+    // 关卡系统驱动波次生成与通关判定
+    this.levels.update(dt, this);
 
     const slowOn = this.clock < this._zombieSlowEnd;
     for (const z of this.zombies) {
       if (z.stunned > 0) continue;
-      z.speed = z.baseSpeed * (slowOn ? 0.4 : 1);
+      let speed = z.baseSpeed * (slowOn ? 0.4 : 1);
+      // 审批员减速(含抗性衰减)
+      if (z._slowEnd && this.clock < z._slowEnd) {
+        speed *= z._slowMul || 0.5;
+      }
+      z.speed = speed;
     }
 
     this._refreshPlantBuffs();
-
     for (const p of this.plants) { if (!p.dead) p.update(dt, this); }
     for (const z of this.zombies) { if (!z.dead) z.update(dt, this); }
-
     this._updateProjectiles(dt);
     this._cleanup();
     this.particles.update(dt, this.grid.group);
     this.effects.update(dt, this.grid.group);
-
     this.eventSystem.updateGhosts(dt);
     this.eventSystem.update(dt, this.clock);
 
-    this.ui.updateTimer(Math.max(0, CFG.GAME_DURATION - this.clock));
     this.ui.updateBaseHp(Math.max(0, this.baseHp / CFG.BASE_HP));
     this.ui.update(dt, this.clock);
-
     this._checkEnd();
   }
 
@@ -283,60 +296,16 @@ class Game {
     const atkDebuffMul = this.clock < this._atkDebuffEnd ? this._atkDebuffMul : 1;
     const speedMul = this.clock < this._atkSpeedEnd ? this._atkSpeedMul : 1;
     const bosses = this.zombies.filter((z) => z.type === 'boss' && !z.dead);
+    const plantStopped = this.items.isPlantStopped();
     for (const p of this.plants) {
       if (p.dead || p.frozen > 0) continue;
       let mul = atkDebuffMul;
-      for (const b of bosses) {
-        if (p.mesh.position.distanceTo(b.mesh.position) < 2.0) { mul *= 0.5; break; }
-      }
-      p.attackMul = mul;
+      for (const b of bosses) { if (p.mesh.position.distanceTo(b.mesh.position) < 2.0) { mul *= 0.5; break; } }
+      p.attackMul = plantStopped ? 0 : mul;
       p.fireRateMul = speedMul;
     }
   }
 
-  // ---------- 波次 ----------
-  _updateWaves(dt) {
-    this.waveTimer -= dt;
-    if (this.waveTimer <= 0) {
-      this.wave++;
-      this.ui.updateWave(this.wave);
-      this._spawnWave(this.wave);
-      const inRush = this.clock >= CFG.GAME_DURATION - CFG.RUSH_TIME;
-      this.waveTimer = inRush ? Math.max(6, 14 - this.wave * 0.8) : Math.max(12, 22 - this.wave * 1.5);
-    }
-  }
-
-  _spawnWave(wave) {
-    const inRush = this.clock >= CFG.GAME_DURATION - CFG.RUSH_TIME;
-    let count = 2 + Math.floor(wave / 2);
-    if (inRush) count = Math.floor(count * 1.8);
-    for (let i = 0; i < count; i++) {
-      const row = Math.floor(Math.random() * CFG.ROWS);
-      const type = this._pickZombieType(this.clock);
-      this.spawnQueue.push({ type, row, at: this.clock + i * 1.2 });
-    }
-    this.ui.toast(inRush ? `🔥 下班高峰！第 ${wave} 波来活儿了！(${count} 个僵尸)` : `第 ${wave} 波来活儿了！(${count} 个僵尸)`);
-  }
-
-  _pickZombieType(elapsed) {
-    const r = Math.random();
-    if (elapsed < 30) return 'client';
-    if (elapsed < 60) return r < 0.6 ? 'client' : 'kpi';
-    return r < 0.4 ? 'client' : r < 0.75 ? 'kpi' : 'boss';
-  }
-
-  _updateSpawnQueue() {
-    for (let i = this.spawnQueue.length - 1; i >= 0; i--) {
-      const s = this.spawnQueue[i];
-      if (this.clock >= s.at) {
-        const z = makeZombie(this.grid.group, s.type, s.row, this.grid);
-        this.zombies.push(z);
-        this.spawnQueue.splice(i, 1);
-      }
-    }
-  }
-
-  // ---------- 弹丸 ----------
   _updateProjectiles(dt) {
     for (const pr of this.projectiles) {
       if (pr.dead) continue;
@@ -346,8 +315,9 @@ class Game {
         const hitRadius = pr.big ? 0.8 : 0.55;
         if (Math.abs(z.mesh.position.x - pr.mesh.position.x) < hitRadius) {
           z.takeDamage(pr.damage);
-          pr.destroy();
-          break;
+          // 审批单弹丸：减速效果 + 抗性衰减
+          if (pr.isApproval) this._applySlow(z, pr.slowMul, pr.slowDuration);
+          pr.destroy(); break;
         }
       }
       if (!pr.dead && (pr.mesh.position.x < this.grid.getSpawnX() - 4 || pr.mesh.position.x > this.grid.getBaseX() + 4)) pr.destroy();
@@ -357,22 +327,16 @@ class Game {
   _cleanup() {
     for (let i = this.plants.length - 1; i >= 0; i--) {
       const p = this.plants[i];
-      if (p.dead) {
-        this.grid.setOccupied(p.row, p.col, null);
-        p.destroy(this);
-        this.plants.splice(i, 1);
-      }
+      if (p.dead) { this.grid.setOccupied(p.row, p.col, null); p.destroy(this); this.plants.splice(i, 1); }
     }
     for (let i = this.zombies.length - 1; i >= 0; i--) {
       const z = this.zombies[i];
       if (z.dead) { z.destroy(this); this.zombies.splice(i, 1); }
     }
-    for (let i = this.projectiles.length - 1; i >= 0; i--) {
-      if (this.projectiles[i].dead) this.projectiles.splice(i, 1);
-    }
+    for (let i = this.projectiles.length - 1; i >= 0; i--) { if (this.projectiles[i].dead) this.projectiles.splice(i, 1); }
   }
 
-  // ---------- 查询辅助(供 Plant/Zombie 调用) ----------
+  // ---------- 查询辅助 ----------
   hasZombieAhead(row, plantX) {
     for (const z of this.zombies) {
       if (z.dead || z.row !== row) continue;
@@ -392,25 +356,38 @@ class Game {
     return best;
   }
 
-  // ---------- 基地/资源辅助(供 EventSystem 调用) ----------
+  // ---------- 基地/资源辅助 ----------
   damageBase(amount) {
     if (this.shieldCount > 0) {
-      this.shieldCount--;
-      this.ui.setShield(this.shieldCount);
-      this.ui.toast('🛡️ 护盾抵挡一次攻击！(剩余' + this.shieldCount + ')');
-      this.audio.play('plant');
-      return;
+      this.shieldCount--; this.ui.setShield(this.shieldCount);
+      this.ui.toast('🛡️ 护盾抵挡！(剩余' + this.shieldCount + ')'); this.audio.play('plant'); return;
     }
     this.baseHp = Math.max(0, this.baseHp - amount);
   }
   healBase(amount) { this.baseHp = Math.min(CFG.BASE_HP, this.baseHp + amount); }
   spendOrForce(amount) {
+    // 摸鱼值可以为负(允许透支)
     if (this.resource.canAfford(amount)) this.resource.spend(amount);
     else this.resource.value -= amount;
   }
   buffAttackSpeed(mul, dur) { this._atkSpeedMul = mul; this._atkSpeedEnd = this.clock + dur; }
   buffAttackMul(mul, dur) { this._atkDebuffMul = mul; this._atkDebuffEnd = this.clock + dur; }
   slowAllZombies(dur) { this._zombieSlowEnd = this.clock + dur; }
+
+  /** 审批员减速+抗性衰减：连续减速超15秒效果减半(防无限控死Boss) */
+  _applySlow(zombie, slowMul, duration) {
+    if (!zombie._slowTotal) zombie._slowTotal = 0;
+    zombie._slowTotal += duration;
+    zombie._slowEnd = this.clock + duration;
+    const resisted = zombie._slowTotal > 15;
+    zombie._slowMul = resisted ? (1 - (1 - slowMul) * 0.5) : slowMul;
+    if (resisted && !zombie._resistMark) {
+      zombie._resistMark = true;
+      const p = zombie.mesh.position.clone(); p.y += 2.2;
+      this.effects.spawnFloatText(this.grid.group, p, '加急!', '#ff6600');
+      this.ui.toast('⚠️ 僵尸被加急处理！减速效果衰减');
+    }
+  }
 
   killWeakestZombies(n) {
     const alive = this.zombies.filter((z) => !z.dead).sort((a, b) => a.hp - b.hp);
@@ -428,8 +405,7 @@ class Game {
     if (empties.length === 0) { this.ui.toast('没有空位种了！'); return; }
     const { r, c } = empties[Math.floor(Math.random() * empties.length)];
     const plant = this.createPlant(type, r, c);
-    this.plants.push(plant);
-    this.grid.setOccupied(r, c, plant);
+    this.plants.push(plant); this.grid.setOccupied(r, c, plant);
     this.particles.spawnPlant(this.grid.group, this.grid.gridToWorld(r, c));
     this.audio.play('plant');
   }
@@ -448,47 +424,50 @@ class Game {
 
   toast(msg) { this.ui.toast(msg); }
 
-  // ---------- Boss 回调 ----------
-  onBossSpawn() {
-    this.bossCount++;
-    if (this.bossCount === 1) {
-      this.ui.setBossDarken(true);
-      this.ui.toast('👑 大老板驾到！全场变暗，植物瑟瑟发抖…');
-      this.audio.play('basehit');
+  // ---------- 怨气值/工时券 ----------
+  /** 击杀僵尸：加怨气值+概率掉工时券 */
+  onZombieKilled(zombie) {
+    this.rage = Math.min(CFG.RAGE_MAX, this.rage + CFG.RAGE_PER_KILL);
+    this.ui.setRage(this.rage, CFG.RAGE_MAX);
+    if (Math.random() < CFG.TICKET_DROP_CHANCE) {
+      this.tickets++;
+      this.ui.updateTickets(this.tickets);
+      const p = zombie.mesh.position.clone(); p.y += 1.5;
+      this.effects.spawnFloatText(this.grid.group, p, '+🎫', '#c9a0ff');
     }
   }
 
-  onBossDie() {
-    this.bossCount = Math.max(0, this.bossCount - 1);
-    if (this.bossCount === 0) this.ui.setBossDarken(false);
+  // ---------- Boss 回调 ----------
+  onBossSpawn() {
+    this.bossCount++;
+    if (this.bossCount === 1) { this.ui.setBossDarken(true); this.audio.play('basehit'); }
   }
-
+  onBossDie() { this.bossCount = Math.max(0, this.bossCount - 1); if (this.bossCount === 0) this.ui.setBossDarken(false); }
   onBossKilled() {
     const drop = 200;
     this.resource.add(drop);
     const pos = this.zombies.length > 0 ? this.zombies[this.zombies.length - 1].mesh.position.clone() : new THREE.Vector3(0, 1, 0);
-    this.effects.spawnFloatText(this.grid.group, pos, '+' + drop + ' 🐟', '#ffd34d');
+    this.effects.spawnFloatText(this.grid.group, pos, '+' + drop + '🐟', '#ffd34d');
     this.ui.toast('🎉 击杀大老板！掉落' + drop + '摸鱼值！');
   }
 
-  // ---------- 胜负 ----------
   _checkEnd() {
     if (!this.running) return;
-    if (this.baseHp <= 0) { this._end(false); return; }
-    if (this.resource.get() < 0) { this._end(false); return; }
-    if (this.clock >= CFG.GAME_DURATION) { this._end(true); return; }
+    if (this.baseHp <= 0) {
+      this.running = false;
+      this.levels.onLevelFail(this);
+    }
+    // 通关判定由 LevelSystem.update 在所有波次清完后触发
   }
 
   _end(win) {
+    // 兼容旧调用：失败走关卡结算
     this.running = false;
-    this.ui.clearSelection();
-    this.ui.setHammerMode(false);
-    this.ui.setBossDarken(false);
+    this.ui.clearSelection(); this.ui.setHammerMode(false);
+    this.ui.setBossDarken(false); this.ui.setWeather(false); this.ui.setPoison(false);
     this.hammerMode = false;
-    this.ui.showOverlay(win ? 'win' : 'lose');
     if (this.eventSystem) this.eventSystem.clearGhosts();
   }
 }
 
-// 启动
 new Game();

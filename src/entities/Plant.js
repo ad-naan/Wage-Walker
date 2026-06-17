@@ -3,18 +3,43 @@ import * as THREE from 'three';
 /**
  * 植物配置表
  * cost 摸鱼值消耗; hp 血量; cd 卡片冷却(秒)
+ * isSkill=技能类(主动道具); isUlt=大招(消耗怨气值); isTicket=消耗工时券
  */
 export const PLANT_TYPES = {
+  // ===== 植物 =====
   sunflower:  { name: '向日葵社畜',   cost: 20,  hp: 120, icon: '🌻', cd: 5,
                 produce: 30, produceInterval: 4, clickGain: 5 },
   peashooter: { name: 'PPT豌豆射手', cost: 100, hp: 120, icon: '📄', cd: 5,
                 damage: 20, fireInterval: 1.4, chargeDamage: 80, chargeCost: 50 },
   wallnut:    { name: '996坚果墙',   cost: 50,  hp: 800, icon: '🥜', cd: 20,
                 drain: 10, drainInterval: 60 },
-  hammer:     { name: '摸鱼锤',     cost: 20,  hp: 0,   icon: '🔨', cd: 15, isSkill: true },
-  shield:     { name: '工位护盾',   cost: 100, hp: 0,   icon: '🛡️', cd: 30, isSkill: true },
-  heal:       { name: '全员回血',   cost: 50,  hp: 0,   icon: '💊', cd: 25, isSkill: true },
-  ult:        { name: '甩锅大会',   cost: 0,   hp: 0,   icon: '🎪', cd: 60, isSkill: true },
+  auditor:    { name: '行政审批员',   cost: 75,  hp: 120, icon: '公章', cd: 8,
+                damage: 15, fireInterval: 1.6, slowMul: 0.5, slowDuration: 3 },
+
+  // ===== 第一类：攻击/清场型 =====
+  hammer:     { name: '换鱼锤',     cost: 20,  hp: 0, icon: '🔨', cd: 12, isSkill: true },
+  shield:     { name: '甩锅盾牌',   cost: 80,  hp: 0, icon: '🛡️', cd: 25, isSkill: true },
+  read:       { name: '已读不回',   cost: 30,  hp: 0, icon: '气泡', cd: 18, isSkill: true },
+  photo:      { name: '团建大合照', cost: 150, hp: 0, icon: '📷', cd: 45, isSkill: true },
+
+  // ===== 第二类：战术陷阱/防御型 =====
+  mine:       { name: '带薪拉屎地雷', cost: 40, hp: 0, icon: '💩', cd: 20, isSkill: true },
+  tiaoxiu:    { name: '调休单护盾',   cost: 60, hp: 0, icon: '📋', cd: 22, isSkill: true },
+  dabing:     { name: '大饼诱饵',     cost: 10, hp: 0, icon: '🥞', cd: 12, isSkill: true },
+
+  // ===== 第三类：增益/Buff类 =====
+  coffee:     { name: '续命咖啡',     cost: 100, hp: 0, icon: '☕', cd: 35, isSkill: true },
+  report:     { name: '日报自动生成器', cost: 50, hp: 0, icon: '📰', cd: 30, isSkill: true },
+  optimize:   { name: '反向优化',     cost: 120, hp: 0, icon: '⚙️', cd: 40, isSkill: true },
+
+  // ===== 第四类：终极技能(消耗怨气值) =====
+  ult_moyu:   { name: '终极摸鱼',   cost: 0, hp: 0, icon: '😎', cd: 0, isUlt: true, rageCost: 100 },
+  ult_meeting:{ name: '紧急会议',   cost: 0, hp: 0, icon: '📢', cd: 0, isUlt: true, rageCost: 100 },
+  ult_bomb:   { name: '钉钉轰炸',   cost: 0, hp: 0, icon: '💣', cd: 0, isUlt: true, rageCost: 100 },
+
+  // ===== 第五类：工时券消耗品 =====
+  weather:    { name: '天气之子',   cost: 0, hp: 0, icon: '🌧️', cd: 0, isTicket: true, ticketCost: 1 },
+  readback:   { name: '已读乱回',   cost: 0, hp: 0, icon: '🗨️', cd: 0, isTicket: true, ticketCost: 2 },
 };
 
 /**
