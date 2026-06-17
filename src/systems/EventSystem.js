@@ -154,7 +154,7 @@ export class EventSystem {
     e2.position.set(0.15, 0.05, 0.42); group.add(e2);
 
     group.userData = { isGhost: true };
-    g.scene.add(group);
+    g.grid.group.add(group);
     const ghost = { mesh: group, baseY: pos.y, born: performance.now() };
     this.ghosts.push(ghost);
   }
@@ -168,7 +168,7 @@ export class EventSystem {
     const idx = this.ghosts.indexOf(ghost);
     if (idx < 0) return;
     this.ghosts.splice(idx, 1);
-    this.game.scene.remove(ghost.mesh);
+    this.game.grid.group.remove(ghost.mesh);
     ghost.mesh.traverse((c) => {
       if (c.geometry) c.geometry.dispose();
       if (c.material) c.material.dispose();
@@ -190,7 +190,7 @@ export class EventSystem {
 
   clearGhosts() {
     for (const gh of this.ghosts) {
-      this.game.scene.remove(gh.mesh);
+      this.game.grid.group.remove(gh.mesh);
       gh.mesh.traverse((c) => {
         if (c.geometry) c.geometry.dispose();
         if (c.material) c.material.dispose();

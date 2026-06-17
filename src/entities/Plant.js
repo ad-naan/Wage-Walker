@@ -7,11 +7,15 @@ import { Projectile } from './Projectile.js';
  */
 export const PLANT_TYPES = {
   sunflower:  { name: '向日葵社畜',   cost: 20,  hp: 120, icon: '🌻', cd: 5,
-                produce: 30, produceInterval: 4 },
+                produce: 30, produceInterval: 4, clickGain: 5 },
   peashooter: { name: 'PPT豌豆射手', cost: 100, hp: 120, icon: '📄', cd: 5,
-                damage: 20, fireInterval: 1.4 },
-  wallnut:    { name: '996坚果墙',   cost: 50,  hp: 800, icon: '🥜', cd: 20 },
-  hammer:     { name: '摸鱼锤',     cost: 0,   hp: 0,   icon: '🔨', cd: 12, isSkill: true },
+                damage: 20, fireInterval: 1.4, chargeDamage: 80, chargeCost: 50 },
+  wallnut:    { name: '996坚果墙',   cost: 50,  hp: 800, icon: '🥜', cd: 20,
+                drain: 10, drainInterval: 60 },
+  hammer:     { name: '摸鱼锤',     cost: 20,  hp: 0,   icon: '🔨', cd: 15, isSkill: true },
+  shield:     { name: '工位护盾',   cost: 100, hp: 0,   icon: '🛡️', cd: 30, isSkill: true },
+  heal:       { name: '全员回血',   cost: 50,  hp: 0,   icon: '💊', cd: 25, isSkill: true },
+  ult:        { name: '甩锅大会',   cost: 0,   hp: 0,   icon: '🎪', cd: 60, isSkill: true },
 };
 
 /**
@@ -32,6 +36,7 @@ export class Plant {
     this.attackMul = 1;     // 攻击力倍率(老板光环/事件会减半)
     this.fireRateMul = 1;   // 攻速倍率(加班事件会提升)
     this.frozen = 0;        // 冻结剩余秒数
+    this.invincible = 0;    // 无敌剩余秒数(福报彩蛋)
     this.timer = Math.random() * 1.5; // 错开节奏
     this.hitFlash = 0;
 
@@ -53,6 +58,7 @@ export class Plant {
       this.applyColorTint(0x88aaff);
       return;
     }
+    if (this.invincible > 0) this.invincible -= dt;
     this.timer += dt;
     this.idle();
     this.behavior(dt, game);
@@ -60,6 +66,8 @@ export class Plant {
     if (this.hitFlash > 0) {
       this.hitFlash -= dt;
       this.applyColorTint(0xff8888);
+    } else if (this.invincible > 0) {
+      this.applyColorTint(0xffe066); // 无敌金光
     } else {
       this.applyColorTint(null);
     }
@@ -75,12 +83,13 @@ export class Plant {
   behavior(dt, game) {}
 
   takeDamage(d) {
+    if (this.invincible > 0) return; // 福报无敌
     this.hp -= d;
     this.hitFlash = 0.12;
     if (this.hp <= 0) this.dead = true;
   }
 
-  /** 临时染色(受击红/冻结蓝)，通过遍历子 mesh 材质 emissive 实现 */
+  /** 临时染色(受击红/冻结蓝/无敌金)，通过遍历子 mesh 材质 emissive 实现 */
   applyColorTint(colorHex) {
     this.mesh.traverse((c) => {
       if (c.isMesh && c.material && c.material.emissive) {
@@ -90,7 +99,7 @@ export class Plant {
   }
 
   destroy(game) {
-    game.scene.remove(this.mesh);
+    game.grid.group.remove(this.mesh);
     this.mesh.traverse((c) => {
       if (c.geometry) c.geometry.dispose();
       if (c.material) c.material.dispose();
@@ -99,7 +108,7 @@ export class Plant {
   }
 }
 
-/** 向日葵社畜：产出摸鱼值，附带"抖腿"待机动画 */
+/** 向日葵社畜：产出摸鱼值，附带"抖腿"待机动画；点击额外产出(有老板路过风险) */
 export class Sunflower extends Plant {
   build() {
     const stem = new THREE.Mesh(
@@ -130,19 +139,42 @@ export class Sunflower extends Plant {
   }
 
   behavior(dt, game) {
-    if (this.timer >= this.cfg.produceInterval) {
+    // 血量越低，越想摸鱼，产出越慢(间隔拉长；最低0.3倍速)
+    const baseHp = (game.cfg ? game.cfg.BASE_HP : 100);
+    const hpRatio = Math.max(0.3, (game.baseHp || baseHp) / baseHp);
+    const interval = this.cfg.produceInterval / hpRatio;
+    if (this.timer >= interval) {
       this.timer = 0;
-      game.resource.add(this.cfg.produce);
+      // 下班高峰摸鱼值翻倍
+      const mul = game.moyuMul || 1;
+      const amount = Math.round(this.cfg.produce * mul);
+      game.resource.add(amount);
       const p = this.mesh.position.clone(); p.y += 1.4;
-      game.spawnFloatText(p, '+' + this.cfg.produce, '#ffd34d');
+      game.spawnFloatText(p, '+' + amount, '#ffd34d');
       game.playSound('produce');
     }
     // 抖腿：头部小幅度快速横向抖动
     this.head.position.x = Math.sin(performance.now() * 0.02) * 0.03;
+    // 点击放大反馈缓动恢复
+    const targetS = 1;
+    this.head.scale.x += (targetS - this.head.scale.x) * Math.min(1, dt * 8);
+    this.head.scale.y = this.head.scale.z = this.head.scale.x;
+  }
+
+  /** 点击产出摸鱼值(老板路过机制由game控制) */
+  onClick(game) {
+    const mul = game.moyuMul || 1;
+    const amount = Math.round(this.cfg.clickGain * mul);
+    game.resource.add(amount);
+    const p = this.mesh.position.clone(); p.y += 1.4;
+    game.spawnFloatText(p, '+' + amount, '#ffd34d');
+    game.playSound('produce');
+    // 头部点击反馈：短暂放大
+    this.head.scale.setScalar(1.2);
   }
 }
 
-/** PPT豌豆射手：疲惫社畜举激光笔，发射 Word 文档弹丸，伤害20，攻速1.4s */
+/** PPT豌豆射手：疲惫社畜举激光笔，发射 Word 文档弹丸，伤害20，攻速1.4s；长按蓄力发射年终总结 */
 export class Peashooter extends Plant {
   build() {
     const suitMat = new THREE.MeshLambertMaterial({ color: 0x2a4a8a });
@@ -157,6 +189,10 @@ export class Peashooter extends Plant {
     this.body.position.y = 0.55;
     this.mesh.add(this.body);
     this.muzzleFlash = 0;
+    this.charging = false;        // 是否正在蓄力
+    this.chargeFx = 0;            // 蓄力光效强度
+    this.clickCount = 0;          // 连点计数(彩蛋)
+    this.lastClickTime = 0;
 
     // 躯干(圆胖西装)
     const torso = new THREE.Mesh(new THREE.SphereGeometry(0.34, 18, 16), suitMat);
@@ -243,19 +279,11 @@ export class Peashooter extends Plant {
 
   behavior(dt, game) {
     const interval = this.cfg.fireInterval / (this.fireRateMul || 1);
-    if (this.timer >= interval) {
+    if (this.timer >= interval && !this.charging) {
       // 仅当本行前方(左侧, 僵尸来袭方向)有僵尸时才射击
       if (game.hasZombieAhead(this.row, this.mesh.position.x)) {
         this.timer = 0;
-        const origin = this.mesh.position.clone();
-        origin.x -= 0.85; origin.y = 0.95; // 朝左发射
-        const proj = new Projectile(game.scene, origin, this.cfg.damage * this.attackMul, 14, -1);
-        proj.row = this.row;
-        game.projectiles.push(proj);
-        game.playSound('shoot');
-        // 后坐力(向右反冲)
-        this.body.position.x = 0.08;
-        this.muzzleFlash = 0.18;
+        this._shoot(game, false);
       }
     }
     this.body.position.x += (0 - this.body.position.x) * Math.min(1, dt * 10);
@@ -266,13 +294,90 @@ export class Peashooter extends Plant {
       this.muzzle.scale.setScalar(1 + f * 1.2);
       if (f > 0) this.muzzleFlash = f - dt;
     }
+    // 蓄力光效
+    if (this.charging) {
+      this.chargeFx = Math.min(1, this.chargeFx + dt * 0.8);
+      if (this.muzzle) {
+        this.muzzle.material.emissiveIntensity = 0.25 + this.chargeFx * 8;
+        this.muzzle.scale.setScalar(1 + this.chargeFx * 2.5);
+      }
+    } else {
+      this.chargeFx = 0;
+    }
     // 头部疲惫微晃 + 手臂轻微抖动(加班太累)
     if (this.head) this.head.rotation.z = Math.sin(performance.now() * 0.004) * 0.05;
     if (this.armGroup) this.armGroup.rotation.z = Math.sin(performance.now() * 0.012) * 0.02;
+    // 连点计数超时重置
+    if (this.clickCount > 0 && performance.now() - this.lastClickTime > 2000) this.clickCount = 0;
+  }
+
+  _shoot(game, big) {
+    const origin = this.mesh.position.clone();
+    origin.x -= 0.85; origin.y = 0.95; // 朝左发射
+    if (big) {
+      const proj = new Projectile(game.grid.group, origin, this.cfg.chargeDamage * this.attackMul, 18, -1, true);
+      proj.row = this.row;
+      game.projectiles.push(proj);
+    } else {
+      const proj = new Projectile(game.grid.group, origin, this.cfg.damage * this.attackMul, 14, -1);
+      proj.row = this.row;
+      game.projectiles.push(proj);
+    }
+    game.playSound('shoot');
+    this.body.position.x = big ? 0.15 : 0.08;
+    this.muzzleFlash = big ? 0.35 : 0.18;
+  }
+
+  /** 开始蓄力 */
+  startCharge(game) {
+    if (this.charging) return;
+    this.charging = true;
+    this.chargeFx = 0;
+  }
+
+  /** 蓄力发射年终总结(大炮弹)，返回是否成功 */
+  chargeShoot(game, chargeTime) {
+    this.charging = false;
+    if (chargeTime < 0.6) {
+      this.chargeFx = 0;
+      return false; // 蓄力不足
+    }
+    if (!game.resource.canAfford(this.cfg.chargeCost)) {
+      game.toast('蓄力需要额外' + this.cfg.chargeCost + '摸鱼值！');
+      this.chargeFx = 0;
+      return false;
+    }
+    game.resource.spend(this.cfg.chargeCost);
+    this._shoot(game, true);
+    const p = this.mesh.position.clone(); p.y += 1.5;
+    game.spawnFloatText(p, '年终总结！', '#ff8800');
+    return true;
+  }
+
+  /** 彩蛋：连续点击10次发射空白PPT秒杀最弱僵尸 */
+  onEggClick(game) {
+    this.clickCount++;
+    this.lastClickTime = performance.now();
+    if (this.clickCount >= 10) {
+      this.clickCount = 0;
+      const alive = game.zombies.filter((z) => !z.dead).sort((a, b) => a.hp - b.hp);
+      if (alive.length > 0) {
+        alive[0].hp = 0;
+        const p = alive[0].mesh.position.clone(); p.y += 1.5;
+        game.spawnFloatText(p, '空白PPT秒杀！', '#ffffff');
+        game.toast('空白PPT混过去了！秒杀最弱僵尸');
+        game.playSound('die');
+      } else {
+        game.toast('没有僵尸可秒杀…');
+      }
+    } else {
+      const p = this.mesh.position.clone(); p.y += 1.5;
+      game.spawnFloatText(p, this.clickCount + '/10', '#aaccff');
+    }
   }
 }
 
-/** 996坚果墙：圆胖坚果社畜，血量800，受伤出现裂纹+压扁+冒汗，重黑眼圈 */
+/** 996坚果墙：圆胖坚果社畜，血量800，持续消耗摸鱼值，受伤出现裂纹+压扁+冒汗，重黑眼圈 */
 export class Wallnut extends Plant {
   build() {
     const shellMat = new THREE.MeshLambertMaterial({ color: 0xb8863a });
@@ -354,11 +459,29 @@ export class Wallnut extends Plant {
       s.userData.phase = i * 0.5;
       this.mesh.add(s); this.sweats.push(s);
     }
+
+    // 持续消耗摸鱼值计时器(996耗命)
+    this.drainTimer = 0;
   }
 
   update(dt, game) {
     super.update(dt, game);
     if (this.dead) return;
+
+    // 持续消耗摸鱼值(996耗命)
+    this.drainTimer += dt;
+    if (this.drainTimer >= this.cfg.drainInterval) {
+      this.drainTimer -= this.cfg.drainInterval;
+      if (game.resource.canAfford(this.cfg.drain)) {
+        game.resource.spend(this.cfg.drain);
+      } else {
+        // 摸鱼值不足，枯萎消失
+        this.dead = true;
+        game.toast('996坚果墙过劳枯萎了…摸鱼值不足！');
+        return;
+      }
+    }
+
     // 裂纹效果：血量越低越暗 + 压扁 + 裂纹显现 + 冒汗加速
     const ratio = this.hp / this.maxHp;
     // 变色(分段)
@@ -388,6 +511,15 @@ export class Wallnut extends Plant {
       s.material.opacity = t < period - 0.2 ? 0.85 : 0;
       s.visible = ratio < 0.85;
     }
+  }
+
+  /** 彩蛋：点击喊"福报！"+无敌1秒 */
+  onEggClick(game) {
+    this.invincible = 1;
+    const p = this.mesh.position.clone(); p.y += 1.8;
+    game.spawnFloatText(p, '福报！', '#ff5d6c');
+    game.toast('996是福报！坚果墙无敌1秒');
+    game.playSound('plant');
   }
 }
 

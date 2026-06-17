@@ -12,6 +12,8 @@ export class GridSystem {
     this.cols = cols;
     this.cell = cell;
     this.group = new THREE.Group();
+    // 整体偏移(轻微俯视视角)
+    this.group.position.set(0, 0, 0);
     this.scene.add(this.group);
     this.tiles = []; // tiles[r][c] = { mesh, occupied, baseColor }
     this.buildGrid();
@@ -23,7 +25,7 @@ export class GridSystem {
       this.tiles[r] = [];
       for (let c = 0; c < this.cols; c++) {
         const pos = this.gridToWorld(r, c);
-        const geo = new THREE.BoxGeometry(this.cell * 0.98, 0.2, this.cell * 0.98);
+        const geo = new THREE.BoxGeometry(this.cell * 1.0, 0.2, this.cell * 1.0);
         const color = (r + c) % 2 === 0 ? 0x5fa84a : 0x4f9a3a;
         const mat = new THREE.MeshLambertMaterial({ color });
         const mesh = new THREE.Mesh(geo, mat);

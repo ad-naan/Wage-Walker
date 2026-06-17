@@ -35,6 +35,11 @@ export class Zombie {
     this.kpiTick = 0;      // KPI扣款计时
     this.hitFlash = 0;
     this.walkPhase = Math.random() * Math.PI * 2; // 行走相位错开
+    this.stunned = 0;           // 眩晕剩余秒数(甩锅大会)
+    this.doubleDamage = false;  // 受到伤害翻倍(摸鱼锤砸)
+    this.stunFxTimer = 0;       // 眩晕星星动画计时
+    this.bossNotified = false;  // Boss变暗是否已通知
+    this.bossStepTimer = 0;     // Boss步距计时
 
     this.mesh = new THREE.Group();
     const start = new THREE.Vector3(grid.getSpawnX(), 0, grid.gridToWorld(row, 0).z);
@@ -127,6 +132,9 @@ export class Zombie {
 
     // 血条(挂在外层 this.mesh,始终朝镜头 +z, 不随模型旋转)
     this._makeHpBar();
+
+    // 眩晕星星(初始隐藏)
+    this._makeStunStars();
   }
 
   // 甲方僵尸：领带 + 公文包 + 圆框眼镜
@@ -232,9 +240,44 @@ export class Zombie {
     this.mesh.add(g); // 挂外层, 朝 +z 镜头
   }
 
+  /** 眩晕星星(头顶旋转) */
+  _makeStunStars() {
+    this.stunGroup = new THREE.Group();
+    this.stunGroup.position.set(0, 2.2, 0);
+    this.stunGroup.visible = false;
+    const starMat = new THREE.MeshBasicMaterial({ color: 0xffe066 });
+    for (let i = 0; i < 3; i++) {
+      const s = new THREE.Mesh(new THREE.OctahedronGeometry(0.08), starMat);
+      const a = (i / 3) * Math.PI * 2;
+      s.position.set(Math.cos(a) * 0.2, 0, Math.sin(a) * 0.2);
+      this.stunGroup.add(s);
+    }
+    this.mesh.add(this.stunGroup);
+  }
+
   update(dt, game) {
     this.aliveTime += dt;
     if (this.hitFlash > 0) this.hitFlash -= dt;
+
+    // 眩晕状态：不动不攻击，只播放眩晕动画
+    if (this.stunned > 0) {
+      this.stunned -= dt;
+      this.stunFxTimer += dt;
+      this.stunGroup.visible = true;
+      this.stunGroup.rotation.y += dt * 4;
+      this.stunGroup.position.y = 2.2 + Math.sin(performance.now() * 0.006) * 0.1;
+      // 眩晕晃动
+      this.mesh.position.y = Math.sin(performance.now() * 0.01) * 0.05;
+      this.mesh.rotation.z = Math.sin(performance.now() * 0.008) * 0.08;
+      // 受击染色
+      const flash = this.hitFlash > 0;
+      for (const m of this.mainMaterials) m.emissive.setHex(flash ? 0x661111 : 0x000000);
+      this._updateHpBar();
+      // 死亡检测
+      if (this.hp <= 0) this._die(game);
+      return;
+    }
+    this.stunGroup.visible = false;
     this.walkPhase += dt * (this.attacking ? 2 : 8);
 
     // 寻找前方阻挡的植物(同行右侧)
@@ -268,7 +311,20 @@ export class Zombie {
     if (this.eyes) for (const e of this.eyes) e.material.emissiveIntensity = glow;
     if (this.cigarGlow) this.cigarGlow.material.emissiveIntensity = glow;
 
-    // 血条
+    this._updateHpBar();
+
+    // 死亡
+    if (this.hp <= 0) { this._die(game); return; }
+
+    // 到达基地(右侧)
+    if (this.mesh.position.x > this.grid.getBaseX()) {
+      game.damageBase(this.cfg.damage);
+      game.playSound('basehit');
+      this.dead = true; // 撞进基地后消失
+    }
+  }
+
+  _updateHpBar() {
     if (this.hpBar) {
       const r = Math.max(0, this.hp / this.maxHp);
       this.hpBar.scale.x = r;
@@ -276,19 +332,20 @@ export class Zombie {
       this.hpBar.material.color.setHex(r > 0.5 ? 0x44dd44 : r > 0.25 ? 0xffcc33 : 0xff3333);
       this.hpBarGroup.visible = r < 0.999;
     }
+  }
 
-    // 死亡
-    if (this.hp <= 0) {
-      this.dead = true;
-      game.spawnDeathParticles(this.mesh.position.clone());
-      game.playSound('die');
+  _die(game) {
+    this.dead = true;
+    game.spawnDeathParticles(this.mesh.position.clone());
+    game.playSound('die');
+    // Boss击杀掉落大量摸鱼值 + 减少倒计时
+    if (this.type === 'boss') {
+      game.onBossKilled();
     }
-
-    // 到达基地(右侧)
-    if (this.mesh.position.x > this.grid.getBaseX()) {
-      game.damageBase(this.cfg.damage);
-      game.playSound('basehit');
-      this.dead = true; // 撞进基地后消失
+    // 普通僵尸击杀掉落少量摸鱼值
+    if (this.type !== 'boss') {
+      const drop = Math.round(this.cfg.hp * 0.1);
+      game.resource.add(drop);
     }
   }
 
@@ -333,8 +390,13 @@ export class Zombie {
     }
   }
 
-  // 老板僵尸：自带光环旋转，经过的植物攻击力减半(光环范围2单位)
+  // 老板僵尸：出现全屏变暗 + 光环旋转 + 每走一步有10%概率开除一颗植物
   specialBoss(dt, game) {
+    // 首次出现：通知game全屏变暗
+    if (!this.bossNotified) {
+      this.bossNotified = true;
+      if (game.onBossSpawn) game.onBossSpawn();
+    }
     if (!this.ring) {
       this.ring = new THREE.Mesh(
         new THREE.TorusGeometry(1.0, 0.08, 8, 24),
@@ -347,7 +409,33 @@ export class Zombie {
     this.ring.rotation.z += dt * 2;
     const ringScale = 1 + Math.sin(performance.now() * 0.004) * 0.1;
     this.ring.scale.set(ringScale, ringScale, 1);
-    // 攻击力减半效果由 Game._refreshPlantBuffs 统一处理(避免与其他 buff 冲突)
+
+    // 每走一步(约2.5秒)有10%概率随机开除一颗植物(向日葵或其它植物)
+    // 优先威胁向日葵(断玩家资源), 其次随机植物
+    this.bossStepTimer += dt;
+    if (this.bossStepTimer >= 2.5 && !this.attacking) {
+      this.bossStepTimer = 0;
+      if (Math.random() < 0.1) {
+        const alive = game.plants.filter((p) => !p.dead && p.invincible <= 0);
+        if (alive.length > 0) {
+          // 60%概率优先开除向日葵(断资源), 40%随机开除任意植物
+          const sunflowers = alive.filter((p) => p.type === 'sunflower');
+          let target;
+          if (sunflowers.length > 0 && Math.random() < 0.6) {
+            target = sunflowers[Math.floor(Math.random() * sunflowers.length)];
+          } else {
+            target = alive[Math.floor(Math.random() * alive.length)];
+          }
+          target.dead = true;
+          game.spawnDeathParticles(target.mesh.position.clone());
+          const name = target.cfg ? target.cfg.name : '一颗植物';
+          game.toast('💀 老板巡视！直接开除' + name + '！');
+          game.playSound('basehit');
+        }
+      } else {
+        game.toast('👑 老板巡视中…这次没开除人');
+      }
+    }
   }
 
   // KPI僵尸：存活超过10秒，每5秒扣基地血量(绩效扣款)
@@ -364,12 +452,18 @@ export class Zombie {
   }
 
   takeDamage(d) {
-    this.hp -= d;
+    // 摸鱼锤砸中：伤害翻倍
+    const real = this.doubleDamage ? d * 2 : d;
+    this.hp -= real;
     this.hitFlash = 0.12;
   }
 
   destroy(game) {
-    game.scene.remove(this.mesh);
+    // Boss消失时恢复亮度
+    if (this.type === 'boss' && this.bossNotified && game.onBossDie) {
+      game.onBossDie();
+    }
+    game.grid.group.remove(this.mesh);
     this.mesh.traverse((c) => {
       if (c.geometry) c.geometry.dispose();
       if (c.material) {

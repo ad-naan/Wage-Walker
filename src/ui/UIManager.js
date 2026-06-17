@@ -3,6 +3,7 @@ import { PLANT_TYPES } from '../entities/Plant.js';
 /**
  * UI 管理器：用 HTML/CSS 叠加层绘制资源条、血条、倒计时、卡片栏、
  * 牛头事件弹窗、浮动提示与开始/结束画面。
+ * 含屏幕变红(老板路过)/全屏变暗(Boss)/护盾显示等新机制。
  */
 export class UIManager {
   constructor(cardsConfig) {
@@ -30,6 +31,10 @@ export class UIManager {
         <span class="stat-label">🏠 工位血量</span>
         <div id="base-hp-bar-bg"><div id="base-hp-bar"></div></div>
       </div>
+      <div class="stat-block" id="shield-block" style="display:none">
+        <span class="stat-label">🛡️ 护盾</span>
+        <span class="stat-value" id="shield-value" style="color:#66ccff">0</span>
+      </div>
       <div class="stat-block">
         <span class="stat-label">⏰ 下班倒计时</span>
         <span id="timer-display">5:00</span>
@@ -47,12 +52,12 @@ export class UIManager {
     this.cardEls = {};
     for (const c of this.cardsConfig) {
       const card = document.createElement('div');
-      card.className = 'card';
+      card.className = 'card' + (c.isSkill ? ' skill-card' : '');
       card.dataset.type = c.type;
       card.innerHTML = `
         <div class="card-icon">${c.icon}</div>
         <div class="card-name">${c.name}</div>
-        <div class="card-cost">${c.isSkill ? '技能' : '🐟' + c.cost}</div>
+        <div class="card-cost">${c.isSkill ? (c.cost > 0 ? '🐟' + c.cost : '技能') : '🐟' + c.cost}</div>
         <div class="card-cd hidden"></div>`;
       card.addEventListener('click', () => this._handleCardClick(c.type));
       bar.appendChild(card);
@@ -84,17 +89,43 @@ export class UIManager {
     root.appendChild(hint);
     this.cursorHint = hint;
 
+    // 老板路过屏幕变红遮罩
+    const patrolFlash = document.createElement('div');
+    patrolFlash.id = 'patrol-flash';
+    root.appendChild(patrolFlash);
+    this.patrolFlash = patrolFlash;
+
+    // Boss全屏变暗遮罩
+    const bossDarken = document.createElement('div');
+    bossDarken.id = 'boss-darken';
+    root.appendChild(bossDarken);
+    this.bossDarken = bossDarken;
+
+    // 下班高峰提示条
+    const rushBanner = document.createElement('div');
+    rushBanner.id = 'rush-banner';
+    rushBanner.textContent = '🔥 下班高峰！僵尸暴增，摸鱼值翻倍！坚持住！';
+    rushBanner.style.display = 'none';
+    root.appendChild(rushBanner);
+    this.rushBanner = rushBanner;
+
     // 开始/结束画面
     const overlay = document.createElement('div');
     overlay.id = 'overlay';
     overlay.innerHTML = `
       <h1 id="overlay-title">植物大战僵尸：牛马版</h1>
       <p id="overlay-desc">你是一个坚守工位的打工人。种植"牛马植物"抵御甲方/老板/KPI僵尸的进攻，坚持5分钟到下班！<br>
-        小心"牛头指导"随机干扰，手快可用摸鱼锤敲碎牛头幽灵打断。</p>
+        🖱️ 点击向日葵可手动摸鱼(小心老板路过！)、长按豌豆射手蓄力发射年终总结、点击坚果墙喊福报无敌。<br>
+        🛡️ 工位护盾抵挡攻击、💊 全员回血、🎪 甩锅大会聚拢僵尸眩晕清场。小心"牛头指导"随机干扰！</p>
       <button id="start-btn">开始搬砖</button>
       <div class="ctrl-hint">
-        🖱️ 点击底部卡片选中植物 → 点击草地放置<br>
-        🔨 选中摸鱼锤后点击场上的"牛头幽灵"可打断干扰(20%概率反向加班)<br>
+        🖱️ 点击底部卡片选中植物/技能 → 点击草地放置/点击僵尸使用<br>
+        🌻 点击向日葵手动产出摸鱼值(15%概率触发老板路过，2秒内别再点)<br>
+        📄 长按PPT豌豆射手蓄力→发射年终总结大炮弹(消耗额外50摸鱼值)<br>
+        🥜 996坚果墙每分钟持续消耗10摸鱼值，不足会枯萎；点击喊"福报！"无敌1秒<br>
+        🔨 摸鱼锤：点牛头幽灵打断干扰 / 点僵尸定身3秒+伤害翻倍<br>
+        🛡️ 护盾(100🐟)抵挡5次攻击 | 💊 回血(50🐟)全场植物+20% | 🎪 甩锅大会(免费/60s冷却)聚拢僵尸眩晕4秒<br>
+        👑 Boss出现全屏变暗，每步有10%概率开除一颗植物(优先向日葵)；击杀掉落200🐟<br>
         💰 摸鱼值为负或工位血量归零即"提桶跑路"
       </div>`;
     root.appendChild(overlay);
@@ -145,6 +176,37 @@ export class UIManager {
     this.cursorHint.style.display = on ? 'block' : 'none';
   }
 
+  /** 屏幕变红闪烁(老板路过警告) */
+  flashRed() {
+    this.patrolFlash.classList.remove('show');
+    // 强制重绘以重新触发动画
+    void this.patrolFlash.offsetWidth;
+    this.patrolFlash.classList.add('show');
+  }
+
+  /** Boss全屏变暗 */
+  setBossDarken(on) {
+    this.bossDarken.classList.toggle('show', on);
+  }
+
+  /** 护盾显示 */
+  setShield(count) {
+    const block = document.getElementById('shield-block');
+    const val = document.getElementById('shield-value');
+    if (count > 0) {
+      block.style.display = 'flex';
+      val.textContent = count;
+    } else {
+      block.style.display = 'none';
+    }
+  }
+
+  /** 下班高峰提示 */
+  setRushMode(on) {
+    this.rushBanner.style.display = on ? 'block' : 'none';
+    document.getElementById('timer-display').classList.toggle('rush', on);
+  }
+
   update(dt, now) {
     // 卡片冷却显示
     for (const type in this.cardEls) {
@@ -160,9 +222,9 @@ export class UIManager {
         this.cardEls[type].classList.remove('disabled');
       }
     }
-    // 卡片可用性(摸鱼值不足灰显，技能除外)
+    // 卡片可用性(摸鱼值不足灰显，免费技能除外)
     for (const c of this.cardsConfig) {
-      if (c.isSkill) continue;
+      if (c.isSkill && c.cost === 0) continue;
       const enough = this._resourceAfford >= c.cost;
       if (!(this.cardCooldowns[c.type] > now)) {
         this.cardEls[c.type].classList.toggle('disabled', !enough);
@@ -188,7 +250,10 @@ export class UIManager {
   updateTimer(sec) {
     const m = Math.floor(sec / 60);
     const s = Math.floor(sec % 60);
-    document.getElementById('timer-display').textContent = `${m}:${s.toString().padStart(2, '0')}`;
+    const el = document.getElementById('timer-display');
+    el.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+    // 下班高峰检测(最后45秒)
+    this.setRushMode(sec <= 45 && sec > 0);
   }
 
   updateWave(w) {
@@ -199,7 +264,7 @@ export class UIManager {
     this.toastEl.textContent = msg;
     this.toastEl.classList.add('show');
     clearTimeout(this._toastTimer);
-    this._toastTimer = setTimeout(() => this.toastEl.classList.remove('show'), 2000);
+    this._toastTimer = setTimeout(() => this.toastEl.classList.remove('show'), 2200);
   }
 
   showNiuEvent(event, onChoose, decisionEnd) {
@@ -239,16 +304,16 @@ export class UIManager {
     const desc = this.overlayDesc;
     title.className = '';
     if (result === 'win') {
-      title.textContent = '🎉 带薪拉屎成功！';
+      title.textContent = '🎉 准时下班成功！';
       title.classList.add('win');
-      desc.innerHTML = '你成功摸鱼到下班！工位保住了，今天又是没有猝死的一天。<br>点击下方按钮再来一局。';
+      desc.innerHTML = '你成功摸鱼到下班！工位保住了，今天又是没有猝死的一天。<br>实际上明天还要来…点击下方按钮再来一局。';
     } else if (result === 'lose') {
       title.textContent = '🪣 提桶跑路…';
       title.classList.add('lose');
       desc.innerHTML = '工位失守 / 摸鱼值透支，你只能提桶跑路了。<br>点击下方按钮重整旗鼓再战。';
     } else {
       title.textContent = '植物大战僵尸：牛马版';
-      desc.innerHTML = '你是一个坚守工位的打工人。种植"牛马植物"抵御甲方/老板/KPI僵尸的进攻，坚持5分钟到下班！<br>小心"牛头指导"随机干扰，手快可用摸鱼锤敲碎牛头幽灵打断。';
+      desc.innerHTML = '你是一个坚守工位的打工人。种植"牛马植物"抵御甲方/老板/KPI僵尸的进攻，坚持5分钟到下班！<br>\n        🖱️ 点击向日葵可手动摸鱼(小心老板路过！)、长按豌豆射手蓄力发射年终总结、点击坚果墙喊福报无敌。<br>\n        🛡️ 工位护盾抵挡攻击、💊 全员回血、🎪 甩锅大会聚拢僵尸眩晕清场。小心"牛头指导"随机干扰！';
     }
     this.startBtn.textContent = result ? '再来一局' : '开始搬砖';
   }
