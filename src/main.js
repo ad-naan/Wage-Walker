@@ -75,6 +75,7 @@ class Game {
 
     // 加载进度，显示选关界面
     this.levels.loadProgress();
+    this.ui.hideOverlay();
     this.levelUI.showMenu();
     this.lastT = performance.now();
     this._loop();
