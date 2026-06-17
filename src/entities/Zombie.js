@@ -8,7 +8,7 @@ import * as THREE from 'three';
 export const ZOMBIE_TYPES = {
   client:  { name: '甲方僵尸', hp: 120, speed: 0.5,  suit: 0xff8fb0, skin: 0xffd9c0, hair: 0x4a2a1a, damage: 18 },
   boss:    { name: '老板僵尸', hp: 220, speed: 0.36, suit: 0xd4a017, skin: 0xffe0b0, hair: 0x202020, damage: 22 },
-  kpi:     { name: 'KPI僵尸',  hp: 160, speed: 0.6,  suit: 0xe53935, skin: 0xffd0c0, hair: 0x1a1a1a, damage: 20 },
+  kpi:     { name: 'KPI僵尸',  hp: 160, speed: 0.6,  suit: 0xe53935, skin: 0xffd0c0, hair: 0x1a1a1a, damage: 15 },
   traitor: { name: '工贼老板', hp: 180, speed: 0.45, suit: 0x6a1b9a, skin: 0xffe0b0, hair: 0x101010, damage: 20 },
 };
 
@@ -437,14 +437,14 @@ export class Zombie {
     }
   }
 
-  // KPI僵尸：存活超过10秒，每5秒扣基地血量(绩效扣款)
+  // KPI僵尸：存活超过15秒，每8秒扣基地血量(绩效扣款)
   specialKpi(dt, game) {
-    if (this.aliveTime > 10) {
+    if (this.aliveTime > 15) {
       this.kpiTick += dt;
-      if (this.kpiTick >= 5) {
+      if (this.kpiTick >= 8) {
         this.kpiTick = 0;
-        game.damageBase(8);
-        game.toast('KPI扣款！工位血量-8');
+        game.damageBase(4);
+        game.toast('KPI扣款！工位血量-4');
         game.playSound('basehit');
       }
     }
