@@ -140,6 +140,7 @@ export class LevelSystem {
       z.baseSpeed *= 1.5;
       z._traitorInterval = 0.75; // 策反频率翻倍
       game.zombies.push(z);
+      game.audio.play('boss');
       game.ui.toast('💀 超级工贼出现！hp×3 速度×1.5 策反翻倍！');
       return;
     }
@@ -150,6 +151,8 @@ export class LevelSystem {
       z.revertThreshold = 1.5;
     }
     game.zombies.push(z);
+    // 僵尸生成音效：Boss用低沉音，普通僵尸用spawn音
+    game.audio.play(type === 'boss' || type === 'traitor' ? 'boss' : 'spawn');
   }
 
   /** 通关 */

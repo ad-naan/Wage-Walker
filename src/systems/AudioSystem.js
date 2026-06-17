@@ -29,6 +29,8 @@ export class AudioSystem {
       die:     { wave: 'sawtooth', f0: 300, f1: 70,  dur: 0.30, vol: 0.16 },
       produce: { wave: 'sine',     f0: 500, f1: 900, dur: 0.15, vol: 0.12 },
       basehit: { wave: 'square',   f0: 110, f1: 70,  dur: 0.22, vol: 0.18 },
+      spawn:   { wave: 'sawtooth', f0: 80,  f1: 200, dur: 0.25, vol: 0.12 },
+      boss:    { wave: 'sawtooth', f0: 60,  f1: 160, dur: 0.50, vol: 0.20 },
     };
     const p = presets[type] || presets.shoot;
     osc.type = p.wave;
