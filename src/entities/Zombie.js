@@ -6,7 +6,7 @@ import * as THREE from 'three';
  * 约定：僵尸从左侧房区生成，向右移动进攻右侧工位基地，模型朝向 +x。
  */
 export const ZOMBIE_TYPES = {
-  client:  { name: '甲方僵尸',   hp: 120, speed: 0.5,  suit: 0x4a90d9, skin: 0xffd9c0, hair: 0x4a2a1a, damage: 18, scale: 1.6 },
+  client:  { name: '甲方僵尸',   hp: 120, speed: 0.5,  suit: 0x4a90d9, skin: 0xffd9c0, hair: 0x8b6914, damage: 18, scale: 1.6 },
   boss:    { name: '画饼老板',   hp: 220, speed: 0.36, suit: 0xd4a017, skin: 0xffe0b0, hair: 0x202020, damage: 22, scale: 1.15 },
   kpi:     { name: 'KPI僵尸',    hp: 180, speed: 0.6,  suit: 0xe53935, skin: 0xffd0c0, hair: 0x1a1a1a, damage: 15, scale: 1.0 },
   traitor: { name: '大老板',     hp: 180, speed: 0.45, suit: 0x1a237e, skin: 0xffe0b0, hair: 0x101010, damage: 20, scale: 1.6 },
@@ -72,9 +72,6 @@ export class Zombie {
     const skinMat = new THREE.MeshLambertMaterial({ color: cfg.skin });
     const darkMat = new THREE.MeshLambertMaterial({ color: 0x6a6a7a });
     const hairMat = new THREE.MeshLambertMaterial({ color: cfg.hair });
-    const eyeMat = new THREE.MeshStandardMaterial({
-      color: 0xff3300, emissive: 0xff1100, emissiveIntensity: 1.0, roughness: 0.4,
-    });
     // 收集需要受击染色的材质
     this.mainMaterials = [suitMat, skinMat, hairMat];
 
@@ -116,15 +113,17 @@ export class Zombie {
     this._part(new THREE.SphereGeometry(0.18, 10, 8), skinMat, 0, -0.12, 0.02, this.head);
     // 头发
     this._part(new THREE.SphereGeometry(0.235, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), hairMat, 0, 0.03, 0, this.head);
-    // 眼窝(深色凹陷) —— +z 为正脸
-    this._part(new THREE.SphereGeometry(0.05, 8, 6), darkMat, -0.08, 0.02, 0.19, this.head);
-    this._part(new THREE.SphereGeometry(0.05, 8, 6), darkMat, 0.08, 0.02, 0.19, this.head);
-    // 眼球(发光)
-    const eL = this._part(new THREE.SphereGeometry(0.035, 8, 6), eyeMat, -0.08, 0.02, 0.215, this.head, false);
-    const eR = this._part(new THREE.SphereGeometry(0.035, 8, 6), eyeMat, 0.08, 0.02, 0.215, this.head, false);
+    // 眼白(白色眼球)
+    const whiteMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    this._part(new THREE.SphereGeometry(0.045, 8, 6), whiteMat, -0.08, 0.02, 0.19, this.head, false);
+    this._part(new THREE.SphereGeometry(0.045, 8, 6), whiteMat, 0.08, 0.02, 0.19, this.head, false);
+    // 瞳孔(黑色小点)
+    const pupilMat = new THREE.MeshLambertMaterial({ color: 0x1a1a2a });
+    const eL = this._part(new THREE.SphereGeometry(0.022, 8, 6), pupilMat, -0.08, 0.02, 0.225, this.head, false);
+    const eR = this._part(new THREE.SphereGeometry(0.022, 8, 6), pupilMat, 0.08, 0.02, 0.225, this.head, false);
     this.eyes = [eL, eR];
     // 嘴(一条缝)
-    this._part(new THREE.BoxGeometry(0.14, 0.02, 0.04), darkMat, 0, -0.1, 0.2, this.head, false);
+    this._part(new THREE.BoxGeometry(0.14, 0.025, 0.04), new THREE.MeshLambertMaterial({ color: 0x8b4513 }), 0, -0.1, 0.2, this.head, false);
 
     // 体型缩放(大老板体型巨大)
     const scale = this.cfg.scale || 1.0;
@@ -167,8 +166,8 @@ export class Zombie {
     const lensMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.3, metalness: 0.8, roughness: 0.2 });
     this._part(new THREE.CircleGeometry(0.055, 12), lensMat, -0.08, 0.02, 0.225, this.head, false);
     this._part(new THREE.CircleGeometry(0.055, 12), lensMat, 0.08, 0.02, 0.225, this.head, false);
-    // 油腻中分头(额外加一层扁平头发)
-    const oilyHair = new THREE.MeshLambertMaterial({ color: 0x2a1a0a });
+    // 油腻中分头(明亮棕色,额外加一层扁平头发)
+    const oilyHair = new THREE.MeshLambertMaterial({ color: 0xa0732a });
     this._part(new THREE.SphereGeometry(0.24, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.4), oilyHair, 0, 0.08, 0, this.head, false);
     // 中分线
     this._part(new THREE.BoxGeometry(0.02, 0.01, 0.24), darkMat, 0, 0.15, 0, this.head, false);
@@ -473,9 +472,12 @@ export class Zombie {
     const flash = this.hitFlash > 0;
     for (const m of this.mainMaterials) m.emissive.setHex(flash ? 0x661111 : 0x000000);
 
-    // 眼球闪烁
+    // 瞳孔轻微缩放(模拟眼神变化)
     const glow = 0.7 + Math.sin(performance.now() * 0.008) * 0.3;
-    if (this.eyes) for (const e of this.eyes) e.material.emissiveIntensity = glow;
+    if (this.eyes) {
+      const s = 1 + Math.sin(performance.now() * 0.006) * 0.15;
+      for (const e of this.eyes) e.scale.setScalar(s);
+    }
     if (this.cigarGlow) this.cigarGlow.material.emissiveIntensity = glow;
     // 画饼老板头顶大饼旋转
     if (this.bossPie) {
