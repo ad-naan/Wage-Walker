@@ -6,7 +6,7 @@ import * as THREE from 'three';
  * 约定：僵尸从左侧房区生成，向右移动进攻右侧工位基地，模型朝向 +x。
  */
 export const ZOMBIE_TYPES = {
-  client:  { name: '甲方僵尸',   hp: 120, speed: 0.5,  suit: 0x4a90d9, skin: 0xffd9c0, hair: 0x8b6914, damage: 18, scale: 1.6 },
+  client:  { name: '甲方僵尸',   hp: 120, speed: 0.5,  suit: 0x4a90d9, skin: 0xffeed5, hair: 0x5a3a1a, damage: 18, scale: 1.6 },
   boss:    { name: '画饼老板',   hp: 220, speed: 0.36, suit: 0xd4a017, skin: 0xffe0b0, hair: 0x202020, damage: 22, scale: 1.15 },
   kpi:     { name: 'KPI僵尸',    hp: 180, speed: 0.6,  suit: 0xe53935, skin: 0xffd0c0, hair: 0x1a1a1a, damage: 15, scale: 1.0 },
   traitor: { name: '大老板',     hp: 180, speed: 0.45, suit: 0x1a237e, skin: 0xffe0b0, hair: 0x101010, damage: 20, scale: 1.6 },
@@ -142,47 +142,130 @@ export class Zombie {
     this._makeStunStars();
   }
 
-  // 甲方僵尸：蓝西装+蓝领带+公文包+圆框眼镜+需求文档卷轴+油腻中分头
+  // 新手甲方·验收官：圆脸白皙+粉色墨镜+中分头+撇嘴+红色印章"改"+头顶"需求"红圈
   buildClient(suitMat, darkMat) {
-    // 覆盖腿部材质：卡其裤(明亮)替代深灰腿
+    // ===== 腿部覆盖：卡其裤 + 棕色皮鞋 =====
     const khakiMat = new THREE.MeshLambertMaterial({ color: 0xc4a062 });
     const shoeMat = new THREE.MeshLambertMaterial({ color: 0x8b5a2b });
-    // 腿部子网格(legL/legR 的 children[0] 是裤腿, children[1] 是鞋)
     if (this.legL && this.legL.children[0]) this.legL.children[0].material = khakiMat;
     if (this.legR && this.legR.children[0]) this.legR.children[0].material = khakiMat;
     if (this.legL && this.legL.children[1]) this.legL.children[1].material = shoeMat;
     if (this.legR && this.legR.children[1]) this.legR.children[1].material = shoeMat;
     this.mainMaterials.push(khakiMat);
 
-    // 蓝领带(配合蓝色西装)
+    // ===== 蓝领带 =====
     const tieMat = new THREE.MeshLambertMaterial({ color: 0x1a5276 });
     this._part(new THREE.BoxGeometry(0.06, 0.34, 0.02), tieMat, 0, 0.82, 0.21);
     this._part(new THREE.ConeGeometry(0.07, 0.12, 4), tieMat, 0, 0.6, 0.21);
-    // 圆框眼镜(金色边框,更油腻)
-    const frameMat = new THREE.MeshLambertMaterial({ color: 0xd4a017 });
-    this._part(new THREE.TorusGeometry(0.06, 0.012, 6, 14), frameMat, -0.08, 0.02, 0.22, this.head, false);
-    this._part(new THREE.TorusGeometry(0.06, 0.012, 6, 14), frameMat, 0.08, 0.02, 0.22, this.head, false);
-    // 镜片(反光效果)
-    const lensMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.3, metalness: 0.8, roughness: 0.2 });
-    this._part(new THREE.CircleGeometry(0.055, 12), lensMat, -0.08, 0.02, 0.225, this.head, false);
-    this._part(new THREE.CircleGeometry(0.055, 12), lensMat, 0.08, 0.02, 0.225, this.head, false);
-    // 油腻中分头(明亮棕色,额外加一层扁平头发)
-    const oilyHair = new THREE.MeshLambertMaterial({ color: 0xa0732a });
-    this._part(new THREE.SphereGeometry(0.24, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.4), oilyHair, 0, 0.08, 0, this.head, false);
-    // 中分线
-    this._part(new THREE.BoxGeometry(0.02, 0.01, 0.24), darkMat, 0, 0.15, 0, this.head, false);
-    // 公文包(棕色)
-    const caseMat = new THREE.MeshLambertMaterial({ color: 0x5d4037 });
-    this._part(new THREE.BoxGeometry(0.26, 0.18, 0.1), caseMat, 0, -0.18, 0.32, this.armR.children[0]);
-    this._part(new THREE.BoxGeometry(0.12, 0.02, 0.06), new THREE.MeshLambertMaterial({ color: 0xffd700 }), 0, 0.1, 0, this.armR.children[0]);
-    // 左手举着"需求文档"卷轴(白色圆柱)
-    const scrollMat = new THREE.MeshLambertMaterial({ color: 0xf5f5dc });
-    const scroll = this._part(new THREE.CylinderGeometry(0.04, 0.04, 0.22, 10), scrollMat, 0, -0.27, 0.1, this.armL.children[0], false);
-    scroll.rotation.x = Math.PI / 2;
-    // 卷轴两端(深色)
-    const capMat = new THREE.MeshLambertMaterial({ color: 0x8d6e63 });
-    this._part(new THREE.CylinderGeometry(0.045, 0.045, 0.02, 10), capMat, 0, -0.27, 0.21, this.armL.children[0], false);
-    this._part(new THREE.CylinderGeometry(0.045, 0.045, 0.02, 10), capMat, 0, -0.27, -0.01, this.armL.children[0], false);
+
+    // ===== 头部重设计：卡通圆脸 =====
+    // 覆盖头颅为更圆的卡通头(已有 skull, 增大并圆化)
+    if (this.head.children[0]) {
+      this.head.children[0].geometry.dispose();
+      this.head.children[0].geometry = new THREE.SphereGeometry(0.25, 16, 14);
+    }
+    // 覆盖下巴为圆润双下巴(卡通感)
+    if (this.head.children[1]) {
+      this.head.children[1].geometry.dispose();
+      this.head.children[1].geometry = new THREE.SphereGeometry(0.22, 12, 10);
+      this.head.children[1].position.set(0, -0.14, 0.04);
+      this.head.children[1].scale.set(1, 0.7, 1);
+    }
+
+    // ===== 完美中分头(发胶固定,一丝不苟) =====
+    // 覆盖通用头发：移除原来的半球头发，换成精致的卡通中分
+    if (this.head.children[2]) this.head.children[2].visible = false;
+    const hairMat2 = new THREE.MeshLambertMaterial({ color: 0x3a2410 });
+    this.mainMaterials.push(hairMat2);
+    // 中分头发：左右两片对称的扁平发片
+    const hairL = this._part(new THREE.SphereGeometry(0.26, 14, 10, 0, Math.PI, 0, Math.PI * 0.5), hairMat2, 0, 0.05, 0, this.head, false);
+    hairL.scale.set(1, 0.6, 1);
+    // 头顶发胶高光(亮色细条,模拟发油反光)
+    const glossMat = new THREE.MeshStandardMaterial({ color: 0x6a4a2a, metalness: 0.6, roughness: 0.3 });
+    this._part(new THREE.BoxGeometry(0.3, 0.015, 0.04), glossMat, 0, 0.2, 0.18, this.head, false);
+    // 中分线(明显的分界)
+    this._part(new THREE.BoxGeometry(0.015, 0.02, 0.28), new THREE.MeshLambertMaterial({ color: 0x2a1a08 }), 0, 0.18, 0, this.head, false);
+
+    // ===== 夸张粉色墨镜(盲审/瞎审) =====
+    // 移除原来的通用眼白和瞳孔(隐藏 children[3]~[6])
+    for (let i = 3; i <= 6; i++) {
+      if (this.head.children[i]) this.head.children[i].visible = false;
+    }
+    // 粉色大墨镜框(一整条横跨)
+    const pinkFrameMat = new THREE.MeshStandardMaterial({ color: 0xff69b4, metalness: 0.3, roughness: 0.4 });
+    this._part(new THREE.BoxGeometry(0.42, 0.12, 0.05), pinkFrameMat, 0, 0.03, 0.2, this.head, false);
+    // 粉色镜片(半透明,看不清眼睛=瞎审)
+    const pinkLensMat = new THREE.MeshStandardMaterial({ color: 0xffb6c1, transparent: true, opacity: 0.75, metalness: 0.5, roughness: 0.15 });
+    this._part(new THREE.BoxGeometry(0.16, 0.1, 0.02), pinkLensMat, -0.1, 0.03, 0.225, this.head, false);
+    this._part(new THREE.BoxGeometry(0.16, 0.1, 0.02), pinkLensMat, 0.1, 0.03, 0.225, this.head, false);
+    // 镜片反光高光(白色斜条)
+    const reflectMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 });
+    this._part(new THREE.BoxGeometry(0.06, 0.02, 0.01), reflectMat, -0.13, 0.06, 0.24, this.head, false);
+    this._part(new THREE.BoxGeometry(0.06, 0.02, 0.01), reflectMat, 0.07, 0.06, 0.24, this.head, false);
+    // 墨镜镜腿(侧面)
+    this._part(new THREE.BoxGeometry(0.04, 0.02, 0.08), pinkFrameMat, -0.22, 0.03, 0.12, this.head, false);
+    this._part(new THREE.BoxGeometry(0.04, 0.02, 0.08), pinkFrameMat, 0.22, 0.03, 0.12, this.head, false);
+
+    // ===== 撇嘴表情(一直撇着,不屑) =====
+    // 覆盖原来的嘴缝(隐藏 children[7])
+    if (this.head.children[7]) this.head.children[7].visible = false;
+    // 撇嘴：一条向左下歪斜的嘴
+    const mouthMat = new THREE.MeshLambertMaterial({ color: 0x8b3a3a });
+    const mouth = this._part(new THREE.BoxGeometry(0.16, 0.03, 0.04), mouthMat, 0, -0.12, 0.22, this.head, false);
+    mouth.rotation.z = 0.25; // 向左下歪
+    // 嘴角下拉(两条小竖线)
+    this._part(new THREE.BoxGeometry(0.02, 0.04, 0.03), mouthMat, -0.08, -0.14, 0.22, this.head, false);
+    this._part(new THREE.BoxGeometry(0.02, 0.04, 0.03), mouthMat, 0.08, -0.1, 0.22, this.head, false);
+
+    // ===== 头顶红色圈出的"需求"字样(修改标记) =====
+    const redCircleGroup = new THREE.Group();
+    redCircleGroup.position.set(0, 0.35, 0);
+    this.head.add(redCircleGroup);
+    // 红色圆圈(修改标记圈)
+    const redRingMat = new THREE.MeshBasicMaterial({ color: 0xff1744, transparent: true, opacity: 0.9 });
+    const redRing = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.012, 8, 20), redRingMat);
+    redRing.rotation.x = Math.PI / 2 - 0.3; // 略微倾斜贴头顶
+    redCircleGroup.add(redRing);
+    // "需求"文字贴图
+    const needTex = this._makeTextTexture('需求', '#ff1744');
+    const needLabel = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.16, 0.1),
+      new THREE.MeshBasicMaterial({ map: needTex, transparent: true })
+    );
+    needLabel.position.y = 0.01;
+    needLabel.rotation.x = -Math.PI / 2 + 0.3; // 贴合头顶弧度
+    redCircleGroup.add(needLabel);
+    this.needMark = redCircleGroup;
+
+    // ===== 右手巨大红色印章(写着"改") =====
+    // 移除右手原有物品(如果有)
+    // 印章手柄(木色)
+    const stampHandleMat = new THREE.MeshLambertMaterial({ color: 0x8b4513 });
+    const stampHandle = this._part(new THREE.CylinderGeometry(0.035, 0.04, 0.22, 10), stampHandleMat, 0, -0.4, 0.15, this.armR.children[0], false);
+    // 印章顶部圆球(手捏处)
+    this._part(new THREE.SphereGeometry(0.05, 10, 8), stampHandleMat, 0, -0.52, 0.15, this.armR.children[0], false);
+    // 印章底部(红色,大号)
+    const stampHeadMat = new THREE.MeshLambertMaterial({ color: 0xd32f2f });
+    this._part(new THREE.CylinderGeometry(0.09, 0.09, 0.06, 14), stampHeadMat, 0, -0.28, 0.15, this.armR.children[0], false);
+    // 印章底面"改"字
+    const stampTex = this._makeTextTexture('改', '#ffffff');
+    const stampLabel = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.14, 0.14),
+      new THREE.MeshBasicMaterial({ map: stampTex, transparent: true })
+    );
+    stampLabel.position.set(0, -0.31, 0.15);
+    stampLabel.rotation.x = -Math.PI / 2;
+    this.armR.children[0].add(stampLabel);
+
+    // ===== 左手拿验收单(带红勾的文件) =====
+    const docMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    this._part(new THREE.BoxGeometry(0.2, 0.26, 0.02), docMat, 0, -0.3, 0.12, this.armL.children[0], false);
+    // 验收单上的红色对勾
+    const checkMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const check1 = this._part(new THREE.BoxGeometry(0.08, 0.015, 0.01), checkMat, 0, -0.35, 0.135, this.armL.children[0], false);
+    check1.rotation.z = -0.6;
+    const check2 = this._part(new THREE.BoxGeometry(0.04, 0.015, 0.01), checkMat, 0.03, -0.33, 0.135, this.armL.children[0], false);
+    check2.rotation.z = 0.6;
   }
 
   // 画饼老板：墨镜反光+金色西装+大肚腩+雪茄+公文包+头顶大饼光环
@@ -486,6 +569,11 @@ export class Zombie {
     }
     // 大老板球杆骷髅头闪烁
     if (this.clubGlow) this.clubGlow.material.emissiveIntensity = 0.6 + Math.sin(performance.now() * 0.01) * 0.4;
+    // 甲方头顶"需求"红圈浮动旋转
+    if (this.needMark) {
+      this.needMark.rotation.y += dt * 1.5;
+      this.needMark.position.y = 0.35 + Math.sin(performance.now() * 0.005) * 0.04;
+    }
 
     this._updateHpBar();
 
