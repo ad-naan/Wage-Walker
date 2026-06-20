@@ -6,7 +6,7 @@ import * as THREE from 'three';
  * 约定：僵尸从左侧房区生成，向右移动进攻右侧工位基地，模型朝向 +x。
  */
 export const ZOMBIE_TYPES = {
-  client:  { name: '甲方僵尸',   hp: 120, speed: 0.5,  suit: 0xff8fb0, skin: 0xffd9c0, hair: 0x4a2a1a, damage: 18, scale: 1.0 },
+  client:  { name: '甲方僵尸',   hp: 120, speed: 0.5,  suit: 0x4a90d9, skin: 0xffd9c0, hair: 0x4a2a1a, damage: 18, scale: 1.3 },
   boss:    { name: '画饼老板',   hp: 220, speed: 0.36, suit: 0xd4a017, skin: 0xffe0b0, hair: 0x202020, damage: 22, scale: 1.15 },
   kpi:     { name: 'KPI僵尸',    hp: 180, speed: 0.6,  suit: 0xe53935, skin: 0xffd0c0, hair: 0x1a1a1a, damage: 15, scale: 1.0 },
   traitor: { name: '大老板',     hp: 180, speed: 0.45, suit: 0x1a237e, skin: 0xffe0b0, hair: 0x101010, damage: 20, scale: 1.6 },
@@ -70,7 +70,7 @@ export class Zombie {
     // 材质
     const suitMat = new THREE.MeshLambertMaterial({ color: cfg.suit });
     const skinMat = new THREE.MeshLambertMaterial({ color: cfg.skin });
-    const darkMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+    const darkMat = new THREE.MeshLambertMaterial({ color: 0x3a3a4a });
     const hairMat = new THREE.MeshLambertMaterial({ color: cfg.hair });
     const eyeMat = new THREE.MeshStandardMaterial({
       color: 0xff3300, emissive: 0xff1100, emissiveIntensity: 1.0, roughness: 0.4,
@@ -143,10 +143,10 @@ export class Zombie {
     this._makeStunStars();
   }
 
-  // 甲方僵尸：领带+公文包+圆框眼镜+需求文档卷轴+油腻中分头
+  // 甲方僵尸：蓝西装+蓝领带+公文包+圆框眼镜+需求文档卷轴+油腻中分头
   buildClient(suitMat, darkMat) {
-    // 红领带
-    const tieMat = new THREE.MeshLambertMaterial({ color: 0xc0392b });
+    // 蓝领带(配合蓝色西装)
+    const tieMat = new THREE.MeshLambertMaterial({ color: 0x1a5276 });
     this._part(new THREE.BoxGeometry(0.06, 0.34, 0.02), tieMat, 0, 0.82, 0.21);
     this._part(new THREE.ConeGeometry(0.07, 0.12, 4), tieMat, 0, 0.6, 0.21);
     // 圆框眼镜(金色边框,更油腻)
