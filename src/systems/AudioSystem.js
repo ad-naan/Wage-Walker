@@ -33,7 +33,7 @@ export class AudioSystem {
       spawn_client:  { wave: 'triangle', f0: 180, f1: 320, dur: 0.18, vol: 0.12 }, // 甲方：轻快上扬
       spawn_kpi:     { wave: 'square',   f0: 100, f1: 250, dur: 0.22, vol: 0.14 }, // KPI：刺耳警报感
       spawn_boss:    { wave: 'sawtooth', f0: 55,  f1: 140, dur: 0.50, vol: 0.20 }, // 老板：低沉威压
-      spawn_traitor: { wave: 'sawtooth', f0: 70,  f1: 180, dur: 0.40, vol: 0.18 }, // 工贼：阴森
+      spawn_traitor: { wave: 'sawtooth', f0: 70,  f1: 180, dur: 0.40, vol: 0.18 }, // 大老板：阴森
     };
     const p = presets[type] || presets.shoot;
     osc.type = p.wave;

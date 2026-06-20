@@ -356,7 +356,7 @@ export class ItemSystem {
     game.ui.toast('☕ 续命咖啡强化版！回血40%+攻速×1.5持续12秒，免疫中毒');
   }
 
-  /** 应急日报系统(Lv5特供)：所有向日葵立即产出+100摸鱼值，免疫工贼策反15秒 */
+  /** 应急日报系统(Lv5特供)：所有向日葵立即产出+100摸鱼值，免疫大老板策反15秒 */
   emergency_report(game) {
     let count = 0;
     for (const p of game.plants) {
