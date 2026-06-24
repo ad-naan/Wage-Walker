@@ -24,22 +24,22 @@ export class UIManager {
     top.id = 'top-bar';
     top.innerHTML = `
       <div class="stat-block" id="level-title-block">
-        <span class="stat-label" id="level-title">🌵 第X关 · 关卡名</span>
+        <span class="stat-label" id="level-title">第X关 · 关卡名</span>
       </div>
       <div class="stat-block">
-        <span class="stat-label">🐟 摸鱼值</span>
+        <span class="stat-label">摸鱼值</span>
         <span class="stat-value" id="resource-value">50</span>
       </div>
       <div class="stat-block">
-        <span class="stat-label">🏠 工位血量</span>
+        <span class="stat-label">工位血量</span>
         <div id="base-hp-bar-bg"><div id="base-hp-bar"></div></div>
       </div>
       <div class="stat-block" id="shield-block" style="display:none">
-        <span class="stat-label">🛡️ 护盾</span>
+        <span class="stat-label">护盾</span>
         <span class="stat-value" id="shield-value" style="color:#66ccff">0</span>
       </div>
       <div class="stat-block">
-        <span class="stat-label">🎫 工时券</span>
+        <span class="stat-label">工时券</span>
         <span class="stat-value" id="ticket-value" style="color:#c9a0ff">0</span>
       </div>
       <div class="stat-block" style="margin-left:auto">
@@ -53,7 +53,7 @@ export class UIManager {
     // 怨气值条(右上方，大招充能)
     const rageBar = document.createElement('div');
     rageBar.id = 'rage-bar';
-    rageBar.innerHTML = `<span class="rage-label">怒😡</span><div class="rage-bg"><div class="rage-fill" id="rage-fill"></div></div><span class="rage-text" id="rage-text">0/100</span>`;
+    rageBar.innerHTML = `<span class="rage-label">怒</span><div class="rage-bg"><div class="rage-fill" id="rage-fill"></div></div><span class="rage-text" id="rage-text">0/100</span>`;
     root.appendChild(rageBar);
 
     // 卡片栏
@@ -67,9 +67,9 @@ export class UIManager {
       card.dataset.type = c.type;
       let costText;
       if (c.isUlt) costText = '怒' + c.rageCost;
-      else if (c.isTicket) costText = '🎫' + c.ticketCost;
+      else if (c.isTicket) costText = '\u{1F3AB}' + c.ticketCost;
       else if (c.cost === 0) costText = '免费';
-      else costText = '🐟' + c.cost;
+      else costText = '\u{1F41F}' + c.cost;
       const svgIcon = getCardIcon(c.type);
       card.innerHTML = `
         <div class="card-icon">${svgIcon}</div>
@@ -92,7 +92,7 @@ export class UIManager {
     const modal = document.createElement('div');
     modal.id = 'niu-modal';
     modal.innerHTML = `
-      <div class="niu-head">🐮</div>
+      <div class="niu-head">牛</div>
       <div class="niu-title" id="niu-title">牛头指导来袭！</div>
       <div class="niu-options" id="niu-options"></div>
       <div class="niu-timer" id="niu-timer">⏳ 6秒内做选择，否则强制最坑项！</div>`;
@@ -108,7 +108,11 @@ export class UIManager {
     // 光标提示
     const hint = document.createElement('div');
     hint.id = 'cursor-hint';
-    hint.textContent = '🔨';
+    hint.textContent = '锤';
+    hint.style.fontWeight = 'bold';
+    hint.style.fontSize = '24px';
+    hint.style.color = '#ffd34d';
+    hint.style.textShadow = '0 0 8px rgba(255,211,77,.5)';
     root.appendChild(hint);
     this.cursorHint = hint;
 
@@ -146,14 +150,15 @@ export class UIManager {
       <p id="overlay-desc">坚守工位的打工人，种植牛马植物抵御僵尸，坚持15分钟到下班！</p>
       <button id="start-btn">开始搬砖</button>
       <div class="ctrl-hint">
-        🌻 点击向日葵手动摸鱼(小心老板路过) | 📄 长按豌豆射手蓄力年终总结 | 🥜 坚果墙点击喊福报<br>
-        🌻📄🥜植物卡片可拖拽到格子放置 | 公章 行政审批员减速射手(75🐟)<br>
-        🔨 换鱼锤自动砸最前排僵尸(定身+伤害) | 🛡️ 甩锅盾牌击退3格 | 📷 团建合照致盲<br>
-        ☕ 续命咖啡回血+攻速 | 📰 日报生成器产出×3 | ⚙️ 反向优化坚果墙满血<br>
-        😎 终极摸鱼(怒气) | 📢 紧急会议(怒气)秒杀 | 💣 钉钉轰炸(怒气)全屏伤害<br>
-        🌧️ 天气之子(工时券)暴雨减速 | 🗨️ 已读乱回(工时券)Boss专用<br>
+        点击向日葵手动摸鱼(小心老板路过) | 长按豌豆射手蓄力年终总结 | 坚果墙点击喊福报<br>
+        植物卡片可拖拽到格子放置 | 公章 行政审批员减速射手(75摸鱼值)<br>
+        换鱼锤自动砸最前排僵尸(定身+伤害翻倍) | 甩锅保护最前排(30摸鱼值)<br>
+        续命咖啡回血加速 | 日报生成器产出×3 | 反向优化坚果墙满血<br>
+        终极摸鱼(怒气) | 紧急会议(怒气)秒杀 | 钉钉轰炸(怒气)全屏伤害<br>
+        天气之子(工时券)暴雨减速 | 已读乱回(工时券)Boss专用<br>
         击杀僵尸积攒怨气值释放大招，概率掉落工时券
-      </div>`;
+      </div>
+    `;
     root.appendChild(overlay);
     this.overlay = overlay;
     this.overlayTitle = overlay.querySelector('#overlay-title');
@@ -185,9 +190,9 @@ export class UIManager {
       card.dataset.type = c.type;
       let costText;
       if (c.isUlt) costText = '怒' + c.rageCost;
-      else if (c.isTicket) costText = '🎫' + c.ticketCost;
+      else if (c.isTicket) costText = '\u{1F3AB}' + c.ticketCost;
       else if (c.cost === 0) costText = '免费';
-      else costText = '🐟' + c.cost;
+      else costText = '\u{1F41F}' + c.cost;
       const svgIcon = getCardIcon(c.type);
       card.innerHTML = `
         <div class="card-icon">${svgIcon}</div>
