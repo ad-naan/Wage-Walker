@@ -1,4 +1,5 @@
 import { PLANT_TYPES } from '../entities/Plant.js';
+import { getCardIcon } from '../assets/icons.js';
 
 /**
  * UI 管理器：资源条、血条、倒计时、卡片栏、牛头弹窗、道具系统UI。
@@ -69,8 +70,9 @@ export class UIManager {
       else if (c.isTicket) costText = '🎫' + c.ticketCost;
       else if (c.cost === 0) costText = '免费';
       else costText = '🐟' + c.cost;
+      const svgIcon = getCardIcon(c.type);
       card.innerHTML = `
-        <div class="card-icon">${c.icon}</div>
+        <div class="card-icon">${svgIcon}</div>
         <div class="card-name">${c.name}</div>
         <div class="card-cost">${costText}</div>
         <div class="card-cd hidden"></div>`;
@@ -186,8 +188,9 @@ export class UIManager {
       else if (c.isTicket) costText = '🎫' + c.ticketCost;
       else if (c.cost === 0) costText = '免费';
       else costText = '🐟' + c.cost;
+      const svgIcon = getCardIcon(c.type);
       card.innerHTML = `
-        <div class="card-icon">${c.icon}</div>
+        <div class="card-icon">${svgIcon}</div>
         <div class="card-name">${c.name}</div>
         <div class="card-cost">${costText}</div>
         <div class="card-cd hidden"></div>`;
