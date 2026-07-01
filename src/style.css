@@ -7,21 +7,39 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000;
 
 /* 顶部状态栏 */
 #top-bar {
-  position: absolute; top: 0; left: 0; right: 0; height: 60px;
-  display: flex; align-items: center; gap: 22px; padding: 0 20px;
-  background: linear-gradient(180deg, rgba(28,30,48,.94), rgba(28,30,48,.55));
-  border-bottom: 2px solid #ffb300; color: #fff;
+  position: absolute; top: 0; left: 0; right: 0; height: 72px;
+  display: flex; align-items: center; gap: 28px; padding: 0 24px;
+  background: linear-gradient(180deg, rgba(18,20,38,.97), rgba(18,20,38,.65));
+  border-bottom: 3px solid #ffb300; color: #fff;
+  box-shadow: 0 4px 20px rgba(255,179,0,.25);
 }
-.stat-block { display: flex; align-items: center; gap: 8px; font-size: 15px; }
-.stat-label { color: #9fd8ff; font-size: 13px; }
-.stat-value { font-weight: bold; font-size: 22px; color: #ffd34d; min-width: 34px; text-align: right; }
-#base-hp-bar-bg { width: 170px; height: 16px; background: #3a2030; border-radius: 8px;
-  overflow: hidden; border: 1px solid #ff5d6c; }
+.stat-block { display: flex; align-items: center; gap: 10px; font-size: 18px; }
+.stat-label {
+  color: #b8e8ff; font-size: 16px; font-weight: bold;
+  text-shadow: 0 1px 3px rgba(0,0,0,.8);
+  letter-spacing: 1px;
+}
+.stat-value {
+  font-weight: 900; font-size: 28px; color: #ffd34d;
+  min-width: 40px; text-align: right;
+  text-shadow: 0 0 8px rgba(255,211,77,.6), 0 2px 4px rgba(0,0,0,.9);
+  letter-spacing: 1px;
+}
+#base-hp-bar-bg { width: 200px; height: 22px; background: #3a2030; border-radius: 11px;
+  overflow: hidden; border: 2px solid #ff5d6c; box-shadow: 0 0 10px rgba(255,93,108,.4); }
 #base-hp-bar { height: 100%; width: 100%; background: linear-gradient(90deg,#ff5d6c,#ffb347); transition: width .3s; }
 /* 关卡标题(左上角) */
-#level-title-block { background: rgba(40,30,10,.5); padding: 4px 12px; border-radius: 12px; border: 1px solid #ffb300; }
-#level-title { font-size: 15px; color: #ffd34d; font-weight: bold; }
-#wave-total { color: #9fd8ff; font-size: 13px; }
+#level-title-block {
+  background: linear-gradient(135deg, rgba(80,50,0,.7), rgba(40,25,0,.8));
+  padding: 8px 18px; border-radius: 14px; border: 2px solid #ffb300;
+  box-shadow: 0 0 16px rgba(255,179,0,.35);
+}
+#level-title {
+  font-size: 20px; color: #ffd34d; font-weight: 900;
+  text-shadow: 0 0 10px rgba(255,211,77,.5), 0 2px 4px rgba(0,0,0,.9);
+  letter-spacing: 2px;
+}
+#wave-total { color: #b8e8ff; font-size: 16px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
 
 /* 卡片栏(底部居中横排，单行不换行) */
 #card-bar {
@@ -49,7 +67,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000;
 
 /* 牛头事件弹窗(右上角) */
 #niu-modal {
-  position: absolute; right: 20px; top: 70px; width: 380px;
+  position: absolute; right: 20px; top: 84px; width: 380px;
   background: linear-gradient(180deg,#3a2a10,#20140a); border: 3px solid #ffb300;
   border-radius: 16px; padding: 18px 20px; color: #fff; display: none;
   box-shadow: 0 0 44px rgba(255,179,0,.6);
@@ -68,10 +86,12 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000;
 
 /* 浮动提示 */
 #toast {
-  position: absolute; top: 76px; left: 50%; transform: translateX(-50%);
-  background: rgba(0,0,0,.78); color: #ffd34d; padding: 9px 20px; border-radius: 22px;
-  font-size: 14px; opacity: 0; transition: opacity .3s; pointer-events: none; white-space: nowrap;
+  position: absolute; top: 88px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,.82); color: #ffd34d; padding: 11px 24px; border-radius: 24px;
+  font-size: 17px; font-weight: bold; opacity: 0; transition: opacity .3s; pointer-events: none; white-space: nowrap;
   max-width: 90vw; text-align: center;
+  text-shadow: 0 1px 4px rgba(0,0,0,.9);
+  border: 1px solid rgba(255,211,77,.3);
 }
 #toast.show { opacity: 1; }
 
@@ -105,7 +125,7 @@ body.hammer-mode #game-canvas { cursor: crosshair; }
 
 /* 老板出现紧急警告横幅 */
 #boss-warning {
-  position: absolute; top: 64px; left: 50%; transform: translateX(-50%) translateY(-100%);
+  position: absolute; top: 78px; left: 50%; transform: translateX(-50%) translateY(-100%);
   background: linear-gradient(90deg, #ff0000, #ff6600, #ff0000);
   color: #fff; padding: 10px 40px; border-radius: 0 0 20px 20px;
   font-size: 18px; font-weight: bold; text-shadow: 0 2px 4px #000;
@@ -158,7 +178,7 @@ body.hammer-mode #game-canvas { cursor: crosshair; }
 
 /* 怨气值条 */
 #rage-bar {
-  position: absolute; right: 20px; top: 70px; z-index: 10;
+  position: absolute; right: 20px; top: 84px; z-index: 10;
   display: flex; align-items: center; gap: 6px;
   background: rgba(20,10,20,.8); padding: 6px 12px; border-radius: 20px;
   border: 1px solid #ff3333;

@@ -6,7 +6,7 @@ import * as THREE from 'three';
  * 约定：僵尸从左侧房区生成，向右移动进攻右侧工位基地，模型朝向 +x。
  */
 export const ZOMBIE_TYPES = {
-  client:  { name: '甲方僵尸',   hp: 120, speed: 0.5,  suit: 0x4a90d9, skin: 0xffeed5, hair: 0x5a3a1a, damage: 18, scale: 1.6 },
+  client:  { name: '甲方僵尸',   hp: 120, speed: 0.5,  suit: 0x1a1a2e, skin: 0xffeed5, hair: 0x1a1008, damage: 18, scale: 1.6 },
   boss:    { name: '画饼老板',   hp: 220, speed: 0.36, suit: 0xd4a017, skin: 0xffe0b0, hair: 0x202020, damage: 22, scale: 1.15 },
   kpi:     { name: 'KPI僵尸',    hp: 180, speed: 0.6,  suit: 0xe53935, skin: 0xffd0c0, hair: 0x1a1a1a, damage: 15, scale: 1.0 },
   traitor: { name: '大老板',     hp: 180, speed: 0.45, suit: 0x1a237e, skin: 0xffe0b0, hair: 0x101010, damage: 20, scale: 1.6 },
@@ -135,137 +135,208 @@ export class Zombie {
     else if (this.type === 'kpi') this.buildKpi(suitMat, darkMat);
     else if (this.type === 'traitor') this.buildTraitor(suitMat, darkMat, hairMat);
 
+    // 甲方专属姿态：手臂不僵尸式前伸，改为自然下垂/举合同姿势
+    if (this.type === 'client') {
+      this.armL.rotation.x = -0.3;  // 左手自然下垂拿咖啡
+      this.armR.rotation.x = -1.8;  // 右手高举需求变更单
+      this.armR.rotation.z = -0.15; // 右手微微外展
+    }
+
     // 血条(挂在外层 this.mesh,始终朝镜头 +z, 不随模型旋转)
     this._makeHpBar();
 
     // 眩晕星星(初始隐藏)
     this._makeStunStars();
+
+    // 甲方名牌(挂外层mesh,始终朝镜头)
+    if (this._clientNamePlatePending) this._makeClientNamePlate();
   }
 
-  // 新手甲方·验收官：圆脸白皙+粉色墨镜+中分头+撇嘴+红色印章"改"+头顶"需求"红圈
+  // 甲方·需求之王：黑色高定西装+金边眼镜+阿玛尼领带+手举合同+金表+傲慢表情
   buildClient(suitMat, darkMat) {
-    // ===== 腿部覆盖：卡其裤 + 棕色皮鞋 =====
-    const khakiMat = new THREE.MeshLambertMaterial({ color: 0xc4a062 });
-    const shoeMat = new THREE.MeshLambertMaterial({ color: 0x8b5a2b });
-    if (this.legL && this.legL.children[0]) this.legL.children[0].material = khakiMat;
-    if (this.legR && this.legR.children[0]) this.legR.children[0].material = khakiMat;
-    if (this.legL && this.legL.children[1]) this.legL.children[1].material = shoeMat;
-    if (this.legR && this.legR.children[1]) this.legR.children[1].material = shoeMat;
-    this.mainMaterials.push(khakiMat);
+    // ===== 覆盖躯干为黑色高定西装 =====
+    const blackSuitMat = new THREE.MeshStandardMaterial({ color: 0x1a1a2e, metalness: 0.15, roughness: 0.6 });
+    if (this.body) this.body.material = blackSuitMat;
+    // 覆盖肩膀为西装垫肩(更宽更方)
+    const shoulderGeo = new THREE.BoxGeometry(0.28, 0.08, 0.22);
+    if (this.model.children) {
+      // 找到肩膀球并替换为垫肩方块
+      for (const child of this.model.children) {
+        if (child.geometry && child.geometry.type === 'SphereGeometry' &&
+            child.position.y > 1.0 && Math.abs(child.position.x) > 0.2) {
+          child.geometry.dispose();
+          child.geometry = new THREE.BoxGeometry(0.22, 0.1, 0.2);
+          child.material = blackSuitMat;
+        }
+      }
+    }
+    this.mainMaterials.push(blackSuitMat);
 
-    // ===== 蓝领带 =====
-    const tieMat = new THREE.MeshLambertMaterial({ color: 0x1a5276 });
-    this._part(new THREE.BoxGeometry(0.06, 0.34, 0.02), tieMat, 0, 0.82, 0.21);
-    this._part(new THREE.ConeGeometry(0.07, 0.12, 4), tieMat, 0, 0.6, 0.21);
+    // ===== 白色衬衫领口(V领露出) =====
+    const shirtMat = new THREE.MeshLambertMaterial({ color: 0xf5f5f5 });
+    this._part(new THREE.BoxGeometry(0.14, 0.18, 0.02), shirtMat, 0, 1.06, 0.22);
+    // 衬衫领子(两片翻领)
+    this._part(new THREE.BoxGeometry(0.08, 0.08, 0.02), shirtMat, -0.06, 1.14, 0.22);
+    this._part(new THREE.BoxGeometry(0.08, 0.08, 0.02), shirtMat, 0.06, 1.14, 0.22);
 
-    // ===== 头部重设计：卡通圆脸 =====
-    // 覆盖头颅为更圆的卡通头(已有 skull, 增大并圆化)
+    // ===== 暗红色阿玛尼领带(低调奢华) =====
+    const tieMat = new THREE.MeshStandardMaterial({ color: 0x8b0000, metalness: 0.3, roughness: 0.5 });
+    this._part(new THREE.BoxGeometry(0.05, 0.06, 0.02), tieMat, 0, 1.12, 0.235); // 领带结
+    this._part(new THREE.BoxGeometry(0.055, 0.3, 0.015), tieMat, 0, 0.88, 0.23);  // 领带身
+    this._part(new THREE.ConeGeometry(0.04, 0.08, 4), tieMat, 0, 0.68, 0.23);     // 领带尖
+
+    // ===== 金色西装扣子(双排扣) =====
+    const goldBtnMat = new THREE.MeshStandardMaterial({ color: 0xdaa520, metalness: 0.9, roughness: 0.2 });
+    this._part(new THREE.SphereGeometry(0.018, 8, 6), goldBtnMat, -0.06, 0.95, 0.25);
+    this._part(new THREE.SphereGeometry(0.018, 8, 6), goldBtnMat, 0.06, 0.95, 0.25);
+    this._part(new THREE.SphereGeometry(0.018, 8, 6), goldBtnMat, -0.06, 0.8, 0.26);
+    this._part(new THREE.SphereGeometry(0.018, 8, 6), goldBtnMat, 0.06, 0.8, 0.26);
+
+    // ===== 腿部覆盖：黑色西裤 + 锃亮黑皮鞋 =====
+    const blackPantsMat = new THREE.MeshLambertMaterial({ color: 0x1a1a2e });
+    const shinyShoeMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, metalness: 0.6, roughness: 0.3 });
+    if (this.legL && this.legL.children[0]) this.legL.children[0].material = blackPantsMat;
+    if (this.legR && this.legR.children[0]) this.legR.children[0].material = blackPantsMat;
+    if (this.legL && this.legL.children[1]) this.legL.children[1].material = shinyShoeMat;
+    if (this.legR && this.legR.children[1]) this.legR.children[1].material = shinyShoeMat;
+    this.mainMaterials.push(blackPantsMat);
+
+    // ===== 覆盖手臂为黑色西装袖 =====
+    if (this.armL) {
+      for (const child of this.armL.children) {
+        if (child.geometry && child.geometry.type === 'BoxGeometry' && child.material === suitMat) {
+          child.material = blackSuitMat;
+        }
+      }
+    }
+    if (this.armR) {
+      for (const child of this.armR.children) {
+        if (child.geometry && child.geometry.type === 'BoxGeometry' && child.material === suitMat) {
+          child.material = blackSuitMat;
+        }
+      }
+    }
+
+    // ===== 头部重设计：方脸严肃甲方 =====
+    // 覆盖头颅为略方的头型(严肃感)
     if (this.head.children[0]) {
       this.head.children[0].geometry.dispose();
-      this.head.children[0].geometry = new THREE.SphereGeometry(0.25, 16, 14);
+      this.head.children[0].geometry = new THREE.BoxGeometry(0.4, 0.38, 0.36, 4, 4, 4);
     }
-    // 覆盖下巴为圆润双下巴(卡通感)
+    // 覆盖下巴为方正下巴(权威感)
     if (this.head.children[1]) {
       this.head.children[1].geometry.dispose();
-      this.head.children[1].geometry = new THREE.SphereGeometry(0.22, 12, 10);
-      this.head.children[1].position.set(0, -0.14, 0.04);
-      this.head.children[1].scale.set(1, 0.7, 1);
+      this.head.children[1].geometry = new THREE.BoxGeometry(0.34, 0.12, 0.3, 3, 3, 3);
+      this.head.children[1].position.set(0, -0.18, 0.02);
     }
 
-    // ===== 完美中分头(发胶固定,一丝不苟) =====
-    // 覆盖通用头发：移除原来的半球头发，换成精致的卡通中分
+    // ===== 大背头(成功人士标配,油光锃亮) =====
     if (this.head.children[2]) this.head.children[2].visible = false;
-    const hairMat2 = new THREE.MeshLambertMaterial({ color: 0x3a2410 });
-    this.mainMaterials.push(hairMat2);
-    // 中分头发：左右两片对称的扁平发片
-    const hairL = this._part(new THREE.SphereGeometry(0.26, 14, 10, 0, Math.PI, 0, Math.PI * 0.5), hairMat2, 0, 0.05, 0, this.head, false);
-    hairL.scale.set(1, 0.6, 1);
-    // 头顶发胶高光(亮色细条,模拟发油反光)
-    const glossMat = new THREE.MeshStandardMaterial({ color: 0x6a4a2a, metalness: 0.6, roughness: 0.3 });
-    this._part(new THREE.BoxGeometry(0.3, 0.015, 0.04), glossMat, 0, 0.2, 0.18, this.head, false);
-    // 中分线(明显的分界)
-    this._part(new THREE.BoxGeometry(0.015, 0.02, 0.28), new THREE.MeshLambertMaterial({ color: 0x2a1a08 }), 0, 0.18, 0, this.head, false);
+    const slickHairMat = new THREE.MeshStandardMaterial({ color: 0x1a1008, metalness: 0.4, roughness: 0.3 });
+    this.mainMaterials.push(slickHairMat);
+    // 大背头整体(向后梳的圆润造型)
+    const backHair = this._part(new THREE.SphereGeometry(0.24, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.5), slickHairMat, 0, 0.06, -0.02, this.head, false);
+    backHair.scale.set(1.05, 0.7, 1.15);
+    // 发际线(微微后移,显得成熟)
+    this._part(new THREE.BoxGeometry(0.38, 0.02, 0.06), slickHairMat, 0, 0.14, 0.15, this.head, false);
+    // 头发高光(发胶反光)
+    const glossMat = new THREE.MeshStandardMaterial({ color: 0x3a2a18, metalness: 0.7, roughness: 0.2 });
+    this._part(new THREE.BoxGeometry(0.2, 0.012, 0.08), glossMat, 0.05, 0.2, 0.08, this.head, false);
 
-    // ===== 夸张粉色墨镜(盲审/瞎审) =====
-    // 移除原来的通用眼白和瞳孔(隐藏 children[3]~[6])
+    // ===== 金边眼镜(甲方审视的目光) =====
+    // 隐藏原来的通用眼睛
     for (let i = 3; i <= 6; i++) {
       if (this.head.children[i]) this.head.children[i].visible = false;
     }
-    // 粉色大墨镜框(一整条横跨)
-    const pinkFrameMat = new THREE.MeshStandardMaterial({ color: 0xff69b4, metalness: 0.3, roughness: 0.4 });
-    this._part(new THREE.BoxGeometry(0.42, 0.12, 0.05), pinkFrameMat, 0, 0.03, 0.2, this.head, false);
-    // 粉色镜片(半透明,看不清眼睛=瞎审)
-    const pinkLensMat = new THREE.MeshStandardMaterial({ color: 0xffb6c1, transparent: true, opacity: 0.75, metalness: 0.5, roughness: 0.15 });
-    this._part(new THREE.BoxGeometry(0.16, 0.1, 0.02), pinkLensMat, -0.1, 0.03, 0.225, this.head, false);
-    this._part(new THREE.BoxGeometry(0.16, 0.1, 0.02), pinkLensMat, 0.1, 0.03, 0.225, this.head, false);
-    // 镜片反光高光(白色斜条)
-    const reflectMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 });
-    this._part(new THREE.BoxGeometry(0.06, 0.02, 0.01), reflectMat, -0.13, 0.06, 0.24, this.head, false);
-    this._part(new THREE.BoxGeometry(0.06, 0.02, 0.01), reflectMat, 0.07, 0.06, 0.24, this.head, false);
-    // 墨镜镜腿(侧面)
-    this._part(new THREE.BoxGeometry(0.04, 0.02, 0.08), pinkFrameMat, -0.22, 0.03, 0.12, this.head, false);
-    this._part(new THREE.BoxGeometry(0.04, 0.02, 0.08), pinkFrameMat, 0.22, 0.03, 0.12, this.head, false);
+    const goldFrameMat = new THREE.MeshStandardMaterial({ color: 0xdaa520, metalness: 0.8, roughness: 0.2 });
+    // 左镜框(圆形金边)
+    this._part(new THREE.TorusGeometry(0.065, 0.008, 8, 16), goldFrameMat, -0.09, 0.02, 0.19, this.head, false);
+    // 右镜框
+    this._part(new THREE.TorusGeometry(0.065, 0.008, 8, 16), goldFrameMat, 0.09, 0.02, 0.19, this.head, false);
+    // 鼻梁架(金丝连接)
+    this._part(new THREE.BoxGeometry(0.05, 0.006, 0.006), goldFrameMat, 0, 0.02, 0.19, this.head, false);
+    // 镜腿(金色细条)
+    this._part(new THREE.BoxGeometry(0.005, 0.006, 0.1), goldFrameMat, -0.16, 0.02, 0.13, this.head, false);
+    this._part(new THREE.BoxGeometry(0.005, 0.006, 0.1), goldFrameMat, 0.16, 0.02, 0.13, this.head, false);
+    // 镜片(微微反光的浅蓝色,显得精明)
+    const lensMat = new THREE.MeshStandardMaterial({ color: 0xccddff, transparent: true, opacity: 0.4, metalness: 0.6, roughness: 0.1 });
+    this._part(new THREE.CircleGeometry(0.058, 14), lensMat, -0.09, 0.02, 0.192, this.head, false);
+    this._part(new THREE.CircleGeometry(0.058, 14), lensMat, 0.09, 0.02, 0.192, this.head, false);
+    // 镜片后面的小眼睛(精明的小眼神)
+    const eyeWhiteMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    this._part(new THREE.SphereGeometry(0.03, 8, 6), eyeWhiteMat, -0.09, 0.02, 0.17, this.head, false);
+    this._part(new THREE.SphereGeometry(0.03, 8, 6), eyeWhiteMat, 0.09, 0.02, 0.17, this.head, false);
+    const pupilMat = new THREE.MeshLambertMaterial({ color: 0x1a1a2a });
+    this._part(new THREE.SphereGeometry(0.016, 8, 6), pupilMat, -0.09, 0.02, 0.195, this.head, false);
+    this._part(new THREE.SphereGeometry(0.016, 8, 6), pupilMat, 0.09, 0.02, 0.195, this.head, false);
 
-    // ===== 撇嘴表情(一直撇着,不屑) =====
-    // 覆盖原来的嘴缝(隐藏 children[7])
+    // ===== 傲慢撇嘴(居高临下的微笑) =====
     if (this.head.children[7]) this.head.children[7].visible = false;
-    // 撇嘴：一条向左下歪斜的嘴
-    const mouthMat = new THREE.MeshLambertMaterial({ color: 0x8b3a3a });
-    const mouth = this._part(new THREE.BoxGeometry(0.16, 0.03, 0.04), mouthMat, 0, -0.12, 0.22, this.head, false);
-    mouth.rotation.z = 0.25; // 向左下歪
-    // 嘴角下拉(两条小竖线)
-    this._part(new THREE.BoxGeometry(0.02, 0.04, 0.03), mouthMat, -0.08, -0.14, 0.22, this.head, false);
-    this._part(new THREE.BoxGeometry(0.02, 0.04, 0.03), mouthMat, 0.08, -0.1, 0.22, this.head, false);
+    const mouthMat = new THREE.MeshLambertMaterial({ color: 0x8b4040 });
+    // 嘴角上扬(傲慢微笑)
+    const mouth = this._part(new THREE.BoxGeometry(0.14, 0.025, 0.04), mouthMat, 0, -0.1, 0.18, this.head, false);
+    mouth.rotation.z = -0.15; // 微微歪斜,不屑一顾
+    // 嘴角上翘(两侧微微上扬)
+    this._part(new THREE.BoxGeometry(0.025, 0.03, 0.03), mouthMat, -0.07, -0.09, 0.18, this.head, false);
+    this._part(new THREE.BoxGeometry(0.025, 0.03, 0.03), mouthMat, 0.07, -0.085, 0.18, this.head, false);
 
-    // ===== 头顶红色圈出的"需求"字样(修改标记) =====
-    const redCircleGroup = new THREE.Group();
-    redCircleGroup.position.set(0, 0.35, 0);
-    this.head.add(redCircleGroup);
-    // 红色圆圈(修改标记圈)
-    const redRingMat = new THREE.MeshBasicMaterial({ color: 0xff1744, transparent: true, opacity: 0.9 });
-    const redRing = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.012, 8, 20), redRingMat);
-    redRing.rotation.x = Math.PI / 2 - 0.3; // 略微倾斜贴头顶
-    redCircleGroup.add(redRing);
-    // "需求"文字贴图
-    const needTex = this._makeTextTexture('需求', '#ff1744');
-    const needLabel = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.16, 0.1),
-      new THREE.MeshBasicMaterial({ map: needTex, transparent: true })
+    // ===== 左手金色劳力士手表 =====
+    const watchMat = new THREE.MeshStandardMaterial({ color: 0xdaa520, metalness: 0.9, roughness: 0.15 });
+    const watchFaceMat = new THREE.MeshStandardMaterial({ color: 0x0a2a0a, metalness: 0.5, roughness: 0.3 });
+    // 表带(金色)
+    this._part(new THREE.BoxGeometry(0.08, 0.04, 0.1), watchMat, 0, -0.2, 0, this.armL, false);
+    // 表盘(绿色,劳力士标志色)
+    this._part(new THREE.CylinderGeometry(0.035, 0.035, 0.015, 12), watchFaceMat, 0, -0.2, 0.05, this.armL, false);
+
+    // ===== 右手举着"需求变更单"(超大标志性道具,夸张版) =====
+    // 大型文件/合同(红色封面,加大号)
+    const contractMat = new THREE.MeshLambertMaterial({ color: 0xcc2222 });
+    this._part(new THREE.BoxGeometry(0.3, 0.38, 0.03), contractMat, 0, -0.1, 0.2, this.armR.children[0], false);
+    // 合同白色内页
+    const pageMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    this._part(new THREE.BoxGeometry(0.26, 0.34, 0.02), pageMat, 0, -0.1, 0.22, this.armR.children[0], false);
+    // 合同上的"需求变更"文字(加大)
+    const reqTex = this._makeTextTexture('需求变更', '#cc0000', 42);
+    const reqLabel = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.24, 0.12),
+      new THREE.MeshBasicMaterial({ map: reqTex, transparent: true })
     );
-    needLabel.position.y = 0.01;
-    needLabel.rotation.x = -Math.PI / 2 + 0.3; // 贴合头顶弧度
-    redCircleGroup.add(needLabel);
-    this.needMark = redCircleGroup;
-
-    // ===== 右手巨大红色印章(写着"改") =====
-    // 移除右手原有物品(如果有)
-    // 印章手柄(木色)
-    const stampHandleMat = new THREE.MeshLambertMaterial({ color: 0x8b4513 });
-    const stampHandle = this._part(new THREE.CylinderGeometry(0.035, 0.04, 0.22, 10), stampHandleMat, 0, -0.4, 0.15, this.armR.children[0], false);
-    // 印章顶部圆球(手捏处)
-    this._part(new THREE.SphereGeometry(0.05, 10, 8), stampHandleMat, 0, -0.52, 0.15, this.armR.children[0], false);
-    // 印章底部(红色,大号)
-    const stampHeadMat = new THREE.MeshLambertMaterial({ color: 0xd32f2f });
-    this._part(new THREE.CylinderGeometry(0.09, 0.09, 0.06, 14), stampHeadMat, 0, -0.28, 0.15, this.armR.children[0], false);
-    // 印章底面"改"字
-    const stampTex = this._makeTextTexture('改', '#ffffff');
-    const stampLabel = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.14, 0.14),
-      new THREE.MeshBasicMaterial({ map: stampTex, transparent: true })
+    reqLabel.position.set(0, 0.0, 0.235);
+    reqLabel.rotation.y = -Math.PI / 2;
+    this.armR.children[0].add(reqLabel);
+    // 合同上的红色大印章(超大"驳回")
+    const rejectTex = this._makeTextTexture('驳回', '#ff0000', 52);
+    const rejectLabel = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.16, 0.16),
+      new THREE.MeshBasicMaterial({ map: rejectTex, transparent: true })
     );
-    stampLabel.position.set(0, -0.31, 0.15);
-    stampLabel.rotation.x = -Math.PI / 2;
-    this.armR.children[0].add(stampLabel);
+    rejectLabel.position.set(0, -0.16, 0.235);
+    rejectLabel.rotation.y = -Math.PI / 2;
+    rejectLabel.rotation.z = 0.3; // 印章歪着盖的
+    this.armR.children[0].add(rejectLabel);
+    // 合同上的横线(模拟文字行)
+    const lineMat = new THREE.MeshBasicMaterial({ color: 0xaaaaaa });
+    for (let i = 0; i < 5; i++) {
+      this._part(new THREE.BoxGeometry(0.2, 0.006, 0.005), lineMat, 0, -0.04 - i * 0.03, 0.235, this.armR.children[0], false);
+    }
 
-    // ===== 左手拿验收单(带红勾的文件) =====
-    const docMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
-    this._part(new THREE.BoxGeometry(0.2, 0.26, 0.02), docMat, 0, -0.3, 0.12, this.armL.children[0], false);
-    // 验收单上的红色对勾
-    const checkMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-    const check1 = this._part(new THREE.BoxGeometry(0.08, 0.015, 0.01), checkMat, 0, -0.35, 0.135, this.armL.children[0], false);
-    check1.rotation.z = -0.6;
-    const check2 = this._part(new THREE.BoxGeometry(0.04, 0.015, 0.01), checkMat, 0.03, -0.33, 0.135, this.armL.children[0], false);
-    check2.rotation.z = 0.6;
+    // ===== 左手拿着星巴克咖啡(加大版,甲方标配) =====
+    const cupMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    const cupSleeve = new THREE.MeshLambertMaterial({ color: 0x6b4226 });
+    // 咖啡杯身(加大)
+    this._part(new THREE.CylinderGeometry(0.045, 0.038, 0.15, 10), cupMat, 0, -0.28, 0.12, this.armL.children[0], false);
+    // 咖啡杯防烫套(棕色,加大)
+    this._part(new THREE.CylinderGeometry(0.047, 0.042, 0.08, 10), cupSleeve, 0, -0.28, 0.12, this.armL.children[0], false);
+    // 咖啡杯盖(绿色,星巴克风,加大)
+    const lidMat = new THREE.MeshLambertMaterial({ color: 0x006241 });
+    this._part(new THREE.CylinderGeometry(0.048, 0.046, 0.025, 10), lidMat, 0, -0.2, 0.12, this.armL.children[0], false);
+    // 杯身logo(绿色圆点,模拟星巴克标志)
+    const logoMat = new THREE.MeshBasicMaterial({ color: 0x006241 });
+    this._part(new THREE.CircleGeometry(0.025, 12), logoMat, 0, -0.28, 0.155, this.armL.children[0], false);
+
+    // ===== 头顶"甲方"名牌(延迟到外层mesh创建,始终朝镜头) =====
+    // 此处只做标记,实际创建在 _makeClientNamePlate() 中
+    this._clientNamePlatePending = true;
   }
 
   // 画饼老板：墨镜反光+金色西装+大肚腩+雪茄+公文包+头顶大饼光环
@@ -465,16 +536,21 @@ export class Zombie {
     }
   }
 
-  _makeTextTexture(text, color) {
+  _makeTextTexture(text, color, fontSize) {
     const c = document.createElement('canvas');
-    c.width = 128; c.height = 64;
+    c.width = 256; c.height = 128;
     const ctx = c.getContext('2d');
     ctx.fillStyle = 'rgba(255,255,255,0)';
-    ctx.fillRect(0, 0, 128, 64);
+    ctx.fillRect(0, 0, 256, 128);
+    const size = fontSize || 44;
     ctx.fillStyle = color;
-    ctx.font = 'bold 44px Arial';
+    ctx.font = `900 ${size}px "Microsoft YaHei", Arial, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(text, 64, 34);
+    // 文字描边(增加可读性)
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = 3;
+    ctx.strokeText(text, 128, 68);
+    ctx.fillText(text, 128, 68);
     const tex = new THREE.CanvasTexture(c);
     tex.anisotropy = 4;
     return tex;
@@ -482,7 +558,9 @@ export class Zombie {
 
   _makeHpBar() {
     const g = new THREE.Group();
-    g.position.set(0, 1.95, 0);
+    // 甲方名牌较大,血条位置抬高避免重叠
+    const hpY = this.type === 'client' ? 3.0 : 1.95;
+    g.position.set(0, hpY, 0);
     const bg = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.08), new THREE.MeshBasicMaterial({ color: 0x331111, transparent: true, opacity: 0.8, side: THREE.DoubleSide }));
     const fg = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.08), new THREE.MeshBasicMaterial({ color: 0x44dd44, side: THREE.DoubleSide }));
     fg.position.z = 0.001;
@@ -491,10 +569,84 @@ export class Zombie {
     this.mesh.add(g); // 挂外层, 朝 +z 镜头
   }
 
+  /** 甲方专属：头顶"甲方"名牌(挂外层mesh,始终朝镜头,不旋转) */
+  _makeClientNamePlate() {
+    const g = new THREE.Group();
+    g.position.set(0, 2.35, 0);
+    this.mesh.add(g); // 挂外层mesh,不受model旋转影响
+
+    // 高分辨率Canvas贴图(512x256,确保文字清晰)
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 256;
+    const ctx = c.getContext('2d');
+    // 金色渐变背景
+    const grad = ctx.createLinearGradient(0, 0, 512, 256);
+    grad.addColorStop(0, '#b8860b');
+    grad.addColorStop(0.5, '#ffd700');
+    grad.addColorStop(1, '#b8860b');
+    ctx.fillStyle = grad;
+    // 圆角矩形背景
+    const r = 20;
+    ctx.beginPath();
+    ctx.moveTo(r, 0); ctx.lineTo(512 - r, 0); ctx.quadraticCurveTo(512, 0, 512, r);
+    ctx.lineTo(512, 256 - r); ctx.quadraticCurveTo(512, 256, 512 - r, 256);
+    ctx.lineTo(r, 256); ctx.quadraticCurveTo(0, 256, 0, 256 - r);
+    ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
+    ctx.closePath();
+    ctx.fill();
+    // 暗金边框
+    ctx.strokeStyle = '#8b6914';
+    ctx.lineWidth = 12;
+    ctx.stroke();
+    // "甲方"文字(超大加粗,白色描边黑)
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 140px "Microsoft YaHei", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+    ctx.lineWidth = 8;
+    ctx.strokeText('甲方', 256, 135);
+    ctx.fillText('甲方', 256, 135);
+    // 底部小字"需求之王"
+    ctx.fillStyle = '#fff8dc';
+    ctx.font = 'bold 42px "Microsoft YaHei", Arial, sans-serif';
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = 3;
+    ctx.strokeText('需求之王', 256, 220);
+    ctx.fillText('需求之王', 256, 220);
+
+    const tex = new THREE.CanvasTexture(c);
+    tex.anisotropy = 8;
+
+    // 双面显示的文字面板(大尺寸)
+    const panelMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
+    const panel = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.35), panelMat);
+    g.add(panel);
+
+    // 名牌顶部小皇冠装饰
+    const crownMat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xaa6600, emissiveIntensity: 0.6 });
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI - Math.PI * 0.5;
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.1, 4), crownMat);
+      spike.position.set(Math.cos(a) * 0.2, 0.22, Math.sin(a) * 0.03);
+      g.add(spike);
+    }
+    // 底部发光光晕
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
+    const glow = new THREE.Mesh(new THREE.RingGeometry(0.18, 0.35, 16), glowMat);
+    glow.rotation.x = Math.PI / 2;
+    glow.position.y = -0.2;
+    g.add(glow);
+
+    this.needMark = g;
+    this._clientNamePanel = panel; // 保存引用,用于update中面向镜头
+  }
+
   /** 眩晕星星(头顶旋转) */
   _makeStunStars() {
     this.stunGroup = new THREE.Group();
-    this.stunGroup.position.set(0, 2.2, 0);
+    const stunY = this.type === 'client' ? 2.9 : 2.2;
+    this.stunGroup.position.set(0, stunY, 0);
     this.stunGroup.visible = false;
     const starMat = new THREE.MeshBasicMaterial({ color: 0xffe066 });
     for (let i = 0; i < 3; i++) {
@@ -514,7 +666,7 @@ export class Zombie {
       this.stunFxTimer += dt;
       this.stunGroup.visible = true;
       this.stunGroup.rotation.y += dt * 4;
-      this.stunGroup.position.y = 2.2 + Math.sin(performance.now() * 0.006) * 0.1;
+      this.stunGroup.position.y = (this.type === 'client' ? 2.9 : 2.2) + Math.sin(performance.now() * 0.006) * 0.1;
       // 眩晕晃动
       this.mesh.position.y = Math.sin(performance.now() * 0.01) * 0.05;
       this.mesh.rotation.z = Math.sin(performance.now() * 0.008) * 0.08;
@@ -545,8 +697,15 @@ export class Zombie {
     const swing = Math.sin(this.walkPhase) * (this.attacking ? 0.15 : 0.6);
     if (this.legL) this.legL.rotation.x = swing;
     if (this.legR) this.legR.rotation.x = -swing;
-    if (this.armL) this.armL.rotation.x = -1.25 + swing * 0.3;
-    if (this.armR) this.armR.rotation.x = -1.25 - swing * 0.3;
+    // 甲方：手臂保持固定姿态，摆动幅度极小(稳重甲方步)
+    if (this.type === 'client') {
+      const clientSwing = Math.sin(this.walkPhase) * 0.08;
+      if (this.armL) this.armL.rotation.x = -0.3 + clientSwing;
+      if (this.armR) this.armR.rotation.x = -1.8 + clientSwing * 0.5;
+    } else {
+      if (this.armL) this.armL.rotation.x = -1.25 + swing * 0.3;
+      if (this.armR) this.armR.rotation.x = -1.25 - swing * 0.3;
+    }
     // 上下颠
     this.mesh.position.y = Math.abs(Math.sin(this.walkPhase)) * 0.05;
     if (!this.attacking) this.mesh.rotation.z = Math.sin(this.walkPhase * 0.5) * 0.03;
@@ -569,10 +728,10 @@ export class Zombie {
     }
     // 大老板球杆骷髅头闪烁
     if (this.clubGlow) this.clubGlow.material.emissiveIntensity = 0.6 + Math.sin(performance.now() * 0.01) * 0.4;
-    // 甲方头顶"需求"红圈浮动旋转
+    // 甲方头顶"甲方"金牌(始终朝+Z方向,即朝镜头,双面渲染保证可读)
     if (this.needMark) {
-      this.needMark.rotation.y += dt * 1.5;
-      this.needMark.position.y = 0.35 + Math.sin(performance.now() * 0.005) * 0.04;
+      // 上下浮动
+      this.needMark.position.y = 2.35 + Math.sin(performance.now() * 0.003) * 0.06;
     }
 
     this._updateHpBar();
