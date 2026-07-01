@@ -84,10 +84,22 @@ class Game {
   _initThree() {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x87CEEB);
-    this.scene.fog = new THREE.Fog(0x87CEEB, 60, 130);
+    this.scene.fog = new THREE.FogExp2(0x87CEEB, 0.012);
+    // 视角预设: [名称, position, target]
+    this._camPresets = [
+      { name: '高俯视', pos: [0, 32, 38], tgt: [0, 0, 0] },    // 当前视角
+      { name: '斜视角', pos: [22, 20, 22], tgt: [-4, 0, 0] },  // 更立体的斜45度
+      { name: '平视', pos: [18, 8, 12], tgt: [-6, 1, 0] },     // 接近地面，沉浸感强
+    ];
+
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 200);
-    this.camera.position.set(0, 28, 35);
-    this.camera.lookAt(0, 0, 0);
+    this.camera.position.set(
+      this._camPresets[0].pos[0],
+      this._camPresets[0].pos[1],
+      this._camPresets[0].pos[2]
+    );
+    this._camTarget = new THREE.Vector3(...this._camPresets[0].tgt);
+    this.camera.lookAt(this._camTarget);
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -101,8 +113,102 @@ class Game {
     dir.shadow.camera.top = 30; dir.shadow.camera.bottom = -30;
     this.scene.add(dir);
     this.scene.add(new THREE.HemisphereLight(0xb0d8ff, 0x4a7a3a, 0.5));
+
+    // 棋盘下方大地基底(避免悬浮感)
+    const groundGeo = new THREE.PlaneGeometry(200, 200);
+    const groundMat = new THREE.MeshLambertMaterial({ color: 0x3a5a2a });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.35;
+    ground.receiveShadow = true;
+    this.scene.add(ground);
+
     this.grid = new GridSystem(this.scene, CFG.ROWS, CFG.COLS, CFG.CELL);
+
+    this._camIdx = 0;
+    this._camAnimating = false;
+    this._camAnimStart = 0;
+    this._camAnimDur = 800; // ms
+    this._camFromPos = [0, 0, 0];
+    this._camFromTgt = [0, 0, 0];
+    this._camToPos = [0, 0, 0];
+    this._camToTgt = [0, 0, 0];
+
+    // 创建视角切换UI
+    this._buildCamUI();
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'c' || e.key === 'C') this._cycleCamera();
+    });
     window.addEventListener('resize', () => this._onResize());
+  }
+
+  /** 构建视角切换按钮 */
+  _buildCamUI() {
+    const container = document.createElement('div');
+    container.id = 'cam-switch';
+    const names = ['高俯视', '斜视角', '平视'];
+    names.forEach((name, i) => {
+      const btn = document.createElement('div');
+      btn.className = 'cam-btn' + (i === 0 ? ' active' : '');
+      btn.textContent = name;
+      btn.addEventListener('click', () => {
+        this._camIdx = i;
+        this._animateToPreset(i);
+      });
+      container.appendChild(btn);
+    });
+    const hint = document.createElement('div');
+    hint.className = 'cam-hint';
+    hint.textContent = '[C] 切换';
+    container.appendChild(hint);
+    document.getElementById('ui-root').appendChild(container);
+    this._camButtons = container.querySelectorAll('.cam-btn');
+  }
+
+  /** 更新按钮选中状态 */
+  _updateCamButtons() {
+    this._camButtons.forEach((btn, i) => btn.classList.toggle('active', i === this._camIdx));
+  }
+
+  /** 平滑切换到指定预设 */
+  _animateToPreset(idx) {
+    if (this._camAnimating) return;
+    const p = this._camPresets[idx];
+    this._camIdx = idx;
+    this._camFromPos = [...this.camera.position.toArray()];
+    this._camFromTgt = [...this._camTarget.toArray()];
+    this._camToPos = p.pos;
+    this._camToTgt = p.tgt;
+    this._camAnimating = true;
+    this._camAnimStart = performance.now();
+    this._updateCamButtons();
+    this.ui.toast(`视角: ${p.name}`);
+  }
+
+  /** 循环切换视角 */
+  _cycleCamera() {
+    if (this._camAnimating) return;
+    this._camIdx = (this._camIdx + 1) % this._camPresets.length;
+    this._animateToPreset(this._camIdx);
+  }
+
+  /** 更新动画相机 */
+  _updateCamera(dt) {
+    if (!this._camAnimating) return;
+    const t = Math.min(1, (performance.now() - this._camAnimStart) / this._camAnimDur);
+    const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; // easeInOutCubic
+    const px = this._camFromPos[0] + (this._camToPos[0] - this._camFromPos[0]) * ease;
+    const py = this._camFromPos[1] + (this._camToPos[1] - this._camFromPos[1]) * ease;
+    const pz = this._camFromPos[2] + (this._camToPos[2] - this._camFromPos[2]) * ease;
+    this.camera.position.set(px, py, pz);
+    this._camTarget.set(
+      this._camFromTgt[0] + (this._camToTgt[0] - this._camFromTgt[0]) * ease,
+      this._camFromTgt[1] + (this._camToTgt[1] - this._camFromTgt[1]) * ease,
+      this._camFromTgt[2] + (this._camToTgt[2] - this._camFromTgt[2]) * ease
+    );
+    this.camera.lookAt(this._camTarget);
+    if (t >= 1) this._camAnimating = false;
   }
 
   _onResize() {
@@ -265,6 +371,7 @@ class Game {
 
     this.resource.update(dt);
     this.items.update(dt, this);
+    this._updateCamera(dt);
     // 关卡系统驱动波次生成与通关判定
     this.levels.update(dt, this);
 
