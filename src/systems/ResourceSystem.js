@@ -7,11 +7,14 @@ export class ResourceSystem {
     this.ui = ui;
     this.value = start;
     this.displayValue = start;
+    this._passiveTimer = 0;
+    this._passiveInterval = 8; // 每8秒被动产出5摸鱼值(防止完全卡死)
   }
 
   reset(start = 50) {
     this.value = start;
     this.displayValue = start;
+    this._passiveTimer = 0;
   }
 
   add(amount) {
@@ -33,6 +36,12 @@ export class ResourceSystem {
   }
 
   update(dt) {
+    // 被动微量产出(防止资源枯竭卡死)
+    this._passiveTimer += dt;
+    if (this._passiveTimer >= this._passiveInterval) {
+      this._passiveTimer = 0;
+      this.value += 5;
+    }
     // displayValue 缓动追随 value
     const diff = this.value - this.displayValue;
     if (Math.abs(diff) < 0.5) {
