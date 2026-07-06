@@ -188,19 +188,10 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #14100c;
 
 /* ===== 牛头事件弹窗 ===== */
 #niu-modal {
-<<<<<<< HEAD
-  position: absolute; right: 16px; top: 140px; width: 340px;
-  background: linear-gradient(180deg, rgba(73,53,29,.96), rgba(25,18,11,.98));
-  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(247,201,72,.52);
-  border-radius: 8px; padding: 16px 18px; color: #fff; display: none;
-  box-shadow: var(--ui-shadow);
-=======
   position: absolute; right: 20px; top: 84px; width: 380px;
   background: linear-gradient(180deg,#3a2a10,#20140a); border: 3px solid #ffb300;
   border-radius: 16px; padding: 18px 20px; color: #fff; display: none;
   box-shadow: 0 0 44px rgba(255,179,0,.6);
->>>>>>> 8050ec337d4ace51f781c915987ae0bf0ea5ae2d
 }
 #niu-modal.show { display: block; animation: pop .25s ease; }
 @keyframes pop { from{opacity:0; transform: translateX(20px);} to{opacity:1; transform: translateX(0);} }
@@ -216,21 +207,12 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #14100c;
 
 /* ===== 浮动 Toast 提示 ===== */
 #toast {
-<<<<<<< HEAD
-  position: absolute; top: 82px; left: 50%; transform: translateX(-50%);
-  background: linear-gradient(180deg, rgba(55,40,24,.95), rgba(18,14,10,.96)); color: #ffe08a; padding: 9px 20px; border-radius: 8px;
-  font-size: 13px; font-weight: 600; opacity: 0; transition: opacity .25s; pointer-events: none; white-space: nowrap;
-  max-width: 90vw; text-align: center;
-  border: 1px solid rgba(247,201,72,.42); backdrop-filter: blur(8px);
-  box-shadow: 0 10px 28px rgba(0,0,0,.35);
-=======
   position: absolute; top: 88px; left: 50%; transform: translateX(-50%);
   background: rgba(0,0,0,.82); color: #ffd34d; padding: 11px 24px; border-radius: 24px;
   font-size: 17px; font-weight: bold; opacity: 0; transition: opacity .3s; pointer-events: none; white-space: nowrap;
   max-width: 90vw; text-align: center;
   text-shadow: 0 1px 4px rgba(0,0,0,.9);
   border: 1px solid rgba(255,211,77,.3);
->>>>>>> 8050ec337d4ace51f781c915987ae0bf0ea5ae2d
 }
 #toast.show { opacity: 1; }
 
