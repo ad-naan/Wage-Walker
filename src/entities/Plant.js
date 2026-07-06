@@ -7,30 +7,30 @@ import * as THREE from 'three';
  */
 export const PLANT_TYPES = {
   // ===== 植物 =====
-  sunflower:  { name: '向日葵社畜',   cost: 20,  hp: 120, icon: '🌻', cd: 5,
-                produce: 30, produceInterval: 4, clickGain: 5 },
-  peashooter: { name: 'PPT豌豆射手', cost: 100, hp: 120, icon: '📄', cd: 5,
-                damage: 20, fireInterval: 1.4, chargeDamage: 80, chargeCost: 50 },
-  wallnut:    { name: '996坚果墙',   cost: 50,  hp: 800, icon: '🥜', cd: 20,
+  sunflower:  { name: '向日葵社畜',   cost: 25,  hp: 120, icon: '🌻', cd: 4,
+                produce: 25, produceInterval: 5, clickGain: 8 },
+  peashooter: { name: 'PPT射手',     cost: 75,  hp: 120, icon: '📄', cd: 5,
+                damage: 25, fireInterval: 1.3, chargeDamage: 90, chargeCost: 40 },
+  wallnut:    { name: '996坚果墙',   cost: 40,  hp: 800, icon: '🥜', cd: 15,
                 drain: 10, drainInterval: 60 },
-  auditor:    { name: '行政审批员',   cost: 75,  hp: 120, icon: '公章', cd: 8,
-                damage: 15, fireInterval: 1.6, slowMul: 0.5, slowDuration: 3 },
+  auditor:    { name: '行政审批员',   cost: 60,  hp: 120, icon: '公章', cd: 7,
+                damage: 18, fireInterval: 1.5, slowMul: 0.5, slowDuration: 3 },
 
   // ===== 第一类：攻击/清场型 =====
-  hammer:     { name: '换鱼锤',     cost: 20,  hp: 0, icon: '🔨', cd: 12, isSkill: true },
-  shield:     { name: '甩锅盾牌',   cost: 80,  hp: 0, icon: '🛡️', cd: 25, isSkill: true },
-  read:       { name: '已读不回',   cost: 30,  hp: 0, icon: '气泡', cd: 18, isSkill: true },
-  photo:      { name: '团建大合照', cost: 150, hp: 0, icon: '📷', cd: 45, isSkill: true },
+  hammer:     { name: '换鱼锤',     cost: 15,  hp: 0, icon: '🔨', cd: 10, isSkill: true },
+  shield:     { name: '甩锅盾牌',   cost: 60,  hp: 0, icon: '🛡️', cd: 22, isSkill: true },
+  read:       { name: '已读不回',   cost: 25,  hp: 0, icon: '气泡', cd: 15, isSkill: true },
+  photo:      { name: '团建大合照', cost: 120, hp: 0, icon: '📷', cd: 40, isSkill: true },
 
   // ===== 第二类：战术陷阱/防御型 =====
-  mine:       { name: '带薪拉屎地雷', cost: 40, hp: 0, icon: '💩', cd: 20, isSkill: true },
-  tiaoxiu:    { name: '调休单护盾',   cost: 60, hp: 0, icon: '📋', cd: 22, isSkill: true },
-  dabing:     { name: '大饼诱饵',     cost: 10, hp: 0, icon: '🥞', cd: 12, isSkill: true },
+  mine:       { name: '带薪拉屎地雷', cost: 30, hp: 0, icon: '💩', cd: 18, isSkill: true },
+  tiaoxiu:    { name: '调休单护盾',   cost: 50, hp: 0, icon: '📋', cd: 20, isSkill: true },
+  dabing:     { name: '大饼诱饵',     cost: 10, hp: 0, icon: '🥞', cd: 10, isSkill: true },
 
   // ===== 第三类：增益/Buff类 =====
-  coffee:     { name: '续命咖啡',     cost: 100, hp: 0, icon: '☕', cd: 35, isSkill: true },
-  report:     { name: '日报自动生成器', cost: 50, hp: 0, icon: '📰', cd: 30, isSkill: true },
-  optimize:   { name: '反向优化',     cost: 120, hp: 0, icon: '⚙️', cd: 40, isSkill: true },
+  coffee:     { name: '续命咖啡',     cost: 80,  hp: 0, icon: '☕', cd: 30, isSkill: true },
+  report:     { name: '日报自动生成器', cost: 40, hp: 0, icon: '📰', cd: 25, isSkill: true },
+  optimize:   { name: '反向优化',     cost: 100, hp: 0, icon: '⚙️', cd: 35, isSkill: true },
 
   // ===== 第四类：终极技能(消耗怨气值) =====
   ult_moyu:   { name: '终极摸鱼',   cost: 0, hp: 0, icon: '😎', cd: 0, isUlt: true, rageCost: 100 },

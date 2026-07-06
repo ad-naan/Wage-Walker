@@ -125,6 +125,8 @@ export class InteractionSystem {
       return;
     }
     plant.onClick(g);
+    // 金币收集粒子
+    g.particles.spawnCoin(g.grid.group, plant.mesh.position.clone());
     if (Math.random() < CFG.PATROL_CHANCE) {
       g.patrolWarning = CFG.PATROL_DURATION;
       g.ui.toast('🚨 老板路过！2秒内别再点向日葵！');

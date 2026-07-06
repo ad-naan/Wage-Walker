@@ -53,7 +53,7 @@ export class LevelSystem {
     this.currentLevelId = levelId;
     this.currentLevel = getLevel(levelId);
     this.currentWaveIndex = -1;
-    this.waveTimer = 3; // 3秒后开始第一波
+    this.waveTimer = 5; // 5秒准备时间后开始第一波
     this.waveSpawnQueue = [];
     this.specialUses = 0;
     this.waveCleared = false;
@@ -82,7 +82,7 @@ export class LevelSystem {
       if (aliveCount === 0) {
         // 本波清完，准备下一波
         if (this.currentWaveIndex < this.currentLevel.waves.length - 1) {
-          this.waveTimer = 4; // 波间间隔4秒
+          this.waveTimer = 6; // 波间间隔6秒(给玩家恢复时间)
           this.waveCleared = false;
           game.ui.toast(`第 ${this.currentWaveIndex + 1}/${this.currentLevel.waves.length} 波清除！准备下一波…`);
         } else {
@@ -113,6 +113,25 @@ export class LevelSystem {
     }
     game.ui.toast(`第 ${this.currentWaveIndex + 1}/${this.currentLevel.waves.length} 波来活儿了！`);
     game.ui.updateWaveProgress(this.currentWaveIndex + 1, this.currentLevel.waves.length);
+    // 波次横幅特效
+    const waveNum = this.currentWaveIndex + 1;
+    const totalWaves = this.currentLevel.waves.length;
+    const bannerTexts = [
+      '僵尸来袭！准备迎战！',
+      '新一波需求到了！',
+      '更多僵尸涌来！',
+      '压力升级！坚持住！',
+      '老板放大招了！小心！',
+      '关键时刻！别松懈！',
+      '最后一搏！冲！',
+      '终局之战！拼命！',
+      '最终冲刺！不能输！',
+    ];
+    game.ui.showWaveBanner(waveNum, totalWaves, bannerTexts[Math.min(waveNum - 1, bannerTexts.length - 1)]);
+    // 第一关第一波显示教程提示
+    if (this.currentLevelId === 1 && this.currentWaveIndex === 0) {
+      setTimeout(() => game.ui.showTip('拖拽或点击底部的卡片选择植物，然后点击草地放置！向日葵社畜生产摸鱼值，PPT射手负责攻击！'), 800);
+    }
     // 第一波立即开始生成
     this._waveClock = 0;
   }

@@ -58,6 +58,20 @@ class Game {
     this.rage = 0;
     this.tickets = 0;
 
+    // 游戏控制
+    this.paused = false;
+    this.speedMul = 1;
+
+    // 连击/得分
+    this.killStreak = 0;
+    this.streakTimer = 0;
+    this.totalKills = 0;
+    this.score = 0;
+
+    // 屏幕震动
+    this._shakeIntensity = 0;
+    this._shakeDuration = 0;
+
     this._initThree();
     this._initUI();
     this.items = new ItemSystem(this);
@@ -133,12 +147,39 @@ class Game {
     this._camFromTgt = [0, 0, 0];
     this._camToPos = [0, 0, 0];
     this._camToTgt = [0, 0, 0];
+    this._camBasePos = new THREE.Vector3();
+
+    // 自由相机轨道控制(右键拖拽旋转 + 滚轮缩放)
+    this._orbitActive = false;       // 是否正在拖拽
+    this._orbitTheta = 0;            // 水平旋转角(弧度)
+    this._orbitPhi = 0;              // 垂直旋转角(弧度, 0=正上方)
+    this._orbitRadius = 40;          // 到目标点的距离
+    this._orbitMinRadius = 15;       // 最近缩放距离
+    this._orbitMaxRadius = 80;       // 最远缩放距离
+    this._orbitMinPhi = 0.15;        // 最小垂直角(防止翻到地下)
+    this._orbitMaxPhi = Math.PI / 2 - 0.05; // 最大垂直角(接近水平)
+    this._orbitTarget = new THREE.Vector3(0, 0, 0); // 相机注视点
+    this._initOrbitFromCamera();
 
     // 创建视角切换UI
     this._buildCamUI();
 
+    // 相机拖拽事件
+    this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    this.canvas.addEventListener('pointerdown', (e) => this._onOrbitDown(e));
+    window.addEventListener('pointermove', (e) => this._onOrbitMove(e));
+    window.addEventListener('pointerup', (e) => this._onOrbitUp(e));
+    this.canvas.addEventListener('wheel', (e) => this._onWheel(e), { passive: false });
+
+    // 游戏控制按钮(暂停/加速)
+    this._buildGameControls();
+
     window.addEventListener('keydown', (e) => {
       if (e.key === 'c' || e.key === 'C') this._cycleCamera();
+      if (e.key === ' ' || e.key === 'Escape') { e.preventDefault(); this._togglePause(); }
+      if (e.key === '1') this._setSpeed(1);
+      if (e.key === '2') this._setSpeed(2);
+      if (e.key === '3') this._setSpeed(3);
     });
     window.addEventListener('resize', () => this._onResize());
   }
@@ -160,10 +201,76 @@ class Game {
     });
     const hint = document.createElement('div');
     hint.className = 'cam-hint';
-    hint.textContent = '[C] 切换';
+    hint.innerHTML = '右键拖拽旋转<br>滚轮缩放';
     container.appendChild(hint);
     document.getElementById('ui-root').appendChild(container);
     this._camButtons = container.querySelectorAll('.cam-btn');
+  }
+
+  /** 构建游戏控制按钮(暂停/加速) */
+  _buildGameControls() {
+    const container = document.createElement('div');
+    container.id = 'game-controls';
+
+    // 暂停按钮
+    const pauseBtn = document.createElement('div');
+    pauseBtn.className = 'gc-btn';
+    pauseBtn.id = 'gc-pause';
+    pauseBtn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
+    pauseBtn.title = '暂停 [空格]';
+    pauseBtn.addEventListener('click', () => this._togglePause());
+    container.appendChild(pauseBtn);
+
+    // 速度按钮组(水平排列)
+    const speedRow = document.createElement('div');
+    speedRow.className = 'gc-speed-row';
+    for (const spd of [1, 2, 3]) {
+      const btn = document.createElement('div');
+      btn.className = 'gc-btn gc-speed' + (spd === 1 ? ' active' : '');
+      btn.id = 'gc-speed-' + spd;
+      btn.textContent = spd + 'x';
+      btn.addEventListener('click', () => this._setSpeed(spd));
+      speedRow.appendChild(btn);
+    }
+    container.appendChild(speedRow);
+
+    // 击杀计数
+    const killInfo = document.createElement('div');
+    killInfo.id = 'gc-info';
+    killInfo.innerHTML = '<span id="kill-count">0</span>击杀<br><span id="combo-display" style="color:#ff8a80"></span>';
+    container.appendChild(killInfo);
+
+    document.getElementById('ui-root').appendChild(container);
+  }
+
+  _togglePause() {
+    if (!this.running) return;
+    this.paused = !this.paused;
+    this.ui.setPaused(this.paused);
+    const btn = document.getElementById('gc-pause');
+    if (this.paused) {
+      btn.classList.add('paused');
+      btn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>';
+    } else {
+      btn.classList.remove('paused');
+      btn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
+    }
+  }
+
+  _setSpeed(spd) {
+    if (!this.running) return;
+    this.speedMul = spd;
+    for (const s of [1, 2, 3]) {
+      const btn = document.getElementById('gc-speed-' + s);
+      if (btn) btn.classList.toggle('active', s === spd);
+    }
+    this.ui.toast('速度: ' + spd + 'x');
+  }
+
+  /** 触发屏幕震动 */
+  shake(intensity = 0.3, duration = 0.3) {
+    this._shakeIntensity = Math.max(this._shakeIntensity, intensity);
+    this._shakeDuration = Math.max(this._shakeDuration, duration);
   }
 
   /** 更新按钮选中状态 */
@@ -176,10 +283,24 @@ class Game {
     if (this._camAnimating) return;
     const p = this._camPresets[idx];
     this._camIdx = idx;
-    this._camFromPos = [...this.camera.position.toArray()];
-    this._camFromTgt = [...this._camTarget.toArray()];
-    this._camToPos = p.pos;
-    this._camToTgt = p.tgt;
+    // 计算当前轨道参数作为起点
+    this._fromTheta = this._orbitTheta;
+    this._fromPhi = this._orbitPhi;
+    this._fromRadius = this._orbitRadius;
+    this._fromTgtX = this._orbitTarget.x;
+    this._fromTgtY = this._orbitTarget.y;
+    this._fromTgtZ = this._orbitTarget.z;
+    // 从预设 pos/tgt 计算目标轨道参数
+    const ox = p.pos[0] - p.tgt[0];
+    const oy = p.pos[1] - p.tgt[1];
+    const oz = p.pos[2] - p.tgt[2];
+    const r = Math.sqrt(ox*ox + oy*oy + oz*oz);
+    this._toTheta = Math.atan2(ox, oz);
+    this._toPhi = Math.acos(Math.max(-1, Math.min(1, oy / Math.max(0.001, r))));
+    this._toRadius = r;
+    this._toTgtX = p.tgt[0];
+    this._toTgtY = p.tgt[1];
+    this._toTgtZ = p.tgt[2];
     this._camAnimating = true;
     this._camAnimStart = performance.now();
     this._updateCamButtons();
@@ -193,22 +314,114 @@ class Game {
     this._animateToPreset(this._camIdx);
   }
 
+  /** 初始化轨道参数(从当前 camera position 推算) */
+  _initOrbitFromCamera() {
+    const offset = new THREE.Vector3().subVectors(this.camera.position, this._orbitTarget);
+    this._orbitRadius = offset.length();
+    this._orbitTheta = Math.atan2(offset.x, offset.z);
+    this._orbitPhi = Math.acos(Math.max(-1, Math.min(1, offset.y / Math.max(0.001, this._orbitRadius))));
+  }
+
+  /** 右键按下：开始拖拽 */
+  _onOrbitDown(e) {
+    if (e.button !== 2) return; // 右键
+    this._orbitActive = true;
+    this._orbitPrevX = e.clientX;
+    this._orbitPrevY = e.clientY;
+    this._camAnimating = false; // 中断动画
+    this.canvas.style.cursor = 'grabbing';
+  }
+
+  /** 拖拽移动 */
+  _onOrbitMove(e) {
+    if (!this._orbitActive) return;
+    const dx = e.clientX - this._orbitPrevX;
+    const dy = e.clientY - this._orbitPrevY;
+    this._orbitPrevX = e.clientX;
+    this._orbitPrevY = e.clientY;
+    // 水平旋转灵敏度
+    this._orbitTheta -= dx * 0.006;
+    // 垂直旋转灵敏度(取反：向下拖→相机下降)
+    this._orbitPhi += dy * 0.006;
+    // 限制 phi 范围
+    this._orbitPhi = Math.max(this._orbitMinPhi, Math.min(this._orbitMaxPhi, this._orbitPhi));
+  }
+
+  /** 右键松开 */
+  _onOrbitUp(e) {
+    if (!this._orbitActive) return;
+    if (e.button === 2 || e.button === undefined) {
+      this._orbitActive = false;
+      this.canvas.style.cursor = '';
+    }
+  }
+
+  /** 滚轮缩放 */
+  _onWheel(e) {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 1.08 : 0.92;
+    this._orbitRadius = Math.max(this._orbitMinRadius, Math.min(this._orbitMaxRadius, this._orbitRadius * delta));
+    this._camAnimating = false; // 中断动画
+    this._updateCamButtons();   // 取消预设高亮
+  }
+
+  /** 从轨道参数更新 camera 位置 */
+  _applyOrbit() {
+    const sinPhi = Math.sin(this._orbitPhi);
+    const x = this._orbitTarget.x + this._orbitRadius * sinPhi * Math.sin(this._orbitTheta);
+    const y = this._orbitTarget.y + this._orbitRadius * Math.cos(this._orbitPhi);
+    const z = this._orbitTarget.z + this._orbitRadius * sinPhi * Math.cos(this._orbitTheta);
+    this.camera.position.set(x, y, z);
+    this._camTarget.copy(this._orbitTarget);
+    this.camera.lookAt(this._camTarget);
+  }
+
   /** 更新动画相机 */
   _updateCamera(dt) {
-    if (!this._camAnimating) return;
-    const t = Math.min(1, (performance.now() - this._camAnimStart) / this._camAnimDur);
-    const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; // easeInOutCubic
-    const px = this._camFromPos[0] + (this._camToPos[0] - this._camFromPos[0]) * ease;
-    const py = this._camFromPos[1] + (this._camToPos[1] - this._camFromPos[1]) * ease;
-    const pz = this._camFromPos[2] + (this._camToPos[2] - this._camFromPos[2]) * ease;
-    this.camera.position.set(px, py, pz);
-    this._camTarget.set(
-      this._camFromTgt[0] + (this._camToTgt[0] - this._camFromTgt[0]) * ease,
-      this._camFromTgt[1] + (this._camToTgt[1] - this._camFromTgt[1]) * ease,
-      this._camFromTgt[2] + (this._camToTgt[2] - this._camFromTgt[2]) * ease
-    );
-    this.camera.lookAt(this._camTarget);
-    if (t >= 1) this._camAnimating = false;
+    if (this._camAnimating) {
+      const t = Math.min(1, (performance.now() - this._camAnimStart) / this._camAnimDur);
+      const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; // easeInOutCubic
+      // 插值轨道参数
+      const theta = this._fromTheta + (this._toTheta - this._fromTheta) * ease;
+      const phi = this._fromPhi + (this._toPhi - this._fromPhi) * ease;
+      const radius = this._fromRadius + (this._toRadius - this._fromRadius) * ease;
+      const tx = this._fromTgtX + (this._toTgtX - this._fromTgtX) * ease;
+      const ty = this._fromTgtY + (this._toTgtY - this._fromTgtY) * ease;
+      const tz = this._fromTgtZ + (this._toTgtZ - this._fromTgtZ) * ease;
+      const sinPhi = Math.sin(phi);
+      this.camera.position.set(
+        tx + radius * sinPhi * Math.sin(theta),
+        ty + radius * Math.cos(phi),
+        tz + radius * sinPhi * Math.cos(theta)
+      );
+      this._camTarget.set(tx, ty, tz);
+      this.camera.lookAt(this._camTarget);
+      if (t >= 1) {
+        this._camAnimating = false;
+        // 同步轨道参数到最终值
+        this._orbitTheta = this._toTheta;
+        this._orbitPhi = this._toPhi;
+        this._orbitRadius = this._toRadius;
+        this._orbitTarget.set(this._toTgtX, this._toTgtY, this._toTgtZ);
+      }
+      return;
+    }
+
+    // 自由拖拽：从轨道参数更新相机
+    if (this._orbitActive) {
+      this._applyOrbit();
+    }
+
+    // 屏幕震动叠加
+    if (this._shakeDuration > 0) {
+      this._shakeDuration -= dt;
+      const decay = Math.max(0, this._shakeDuration / 0.3);
+      const offset = this._shakeIntensity * decay;
+      this.camera.position.x += (Math.random() - 0.5) * offset * 2;
+      this.camera.position.y += (Math.random() - 0.5) * offset;
+      this.camera.lookAt(this._camTarget);
+      if (this._shakeDuration <= 0) { this._shakeIntensity = 0; }
+    }
   }
 
   _onResize() {
@@ -330,6 +543,9 @@ class Game {
     this.patrolWarning = 0; this.shieldCount = 0; this.bossCount = 0;
     this.moyuMul = 1; this.rage = 0;
     this.interaction.reset();
+    this.paused = false; this.speedMul = 1;
+    this.killStreak = 0; this.streakTimer = 0; this.totalKills = 0; this.score = 0;
+    this._updateKillDisplay();
     this._atkDebuffMul = 1; this._atkDebuffEnd = 0;
     this._atkSpeedMul = 1;  this._atkSpeedEnd = 0;
     this._zombieSlowEnd = 0;
@@ -356,7 +572,10 @@ class Game {
     let dt = (now - this.lastT) / 1000;
     this.lastT = now;
     dt = Math.min(dt, 0.05);
-    if (this.running) this._update(dt);
+    if (this.running && !this.paused) {
+      const subDt = dt * this.speedMul;
+      this._update(Math.min(subDt, 0.1));
+    }
     tweenManager.update(dt);
     this.renderer.render(this.scene, this.camera);
   };
@@ -398,7 +617,36 @@ class Game {
 
     this.ui.updateBaseHp(Math.max(0, this.baseHp / CFG.BASE_HP));
     this.ui.update(dt, this.clock);
+    this.ui.updateEnemyCount(this.zombies.filter((z) => !z.dead).length);
+    this.ui.updateScore(this.score);
+    this._updateStreak(dt);
     this._checkEnd();
+  }
+
+  /** Combo 连击衰减与UI更新 */
+  _updateStreak(dt) {
+    if (this.streakTimer > 0) {
+      this.streakTimer -= dt;
+      if (this.streakTimer <= 0) {
+        this.killStreak = 0;
+        this._updateKillDisplay();
+      }
+    }
+  }
+
+  /** 更新击杀/连击 UI */
+  _updateKillDisplay() {
+    const kc = document.getElementById('kill-count');
+    if (kc) kc.textContent = this.totalKills;
+    const cd = document.getElementById('combo-display');
+    if (cd) {
+      if (this.killStreak >= 3) {
+        cd.textContent = `${this.killStreak}连击!`;
+        cd.style.color = this.killStreak >= 7 ? '#ffd700' : this.killStreak >= 5 ? '#ff6600' : '#ff8a80';
+      } else {
+        cd.textContent = '';
+      }
+    }
   }
 
   _refreshPlantBuffs() {
@@ -472,6 +720,8 @@ class Game {
       this.ui.toast('🛡️ 护盾抵挡！(剩余' + this.shieldCount + ')'); this.audio.play('plant'); return;
     }
     this.baseHp = Math.max(0, this.baseHp - amount);
+    this.shake(0.4, 0.3);
+    this.ui.flashRed();
   }
   healBase(amount) { this.baseHp = Math.min(CFG.BASE_HP, this.baseHp + amount); }
   spendOrForce(amount) {
@@ -534,10 +784,25 @@ class Game {
   toast(msg) { this.ui.toast(msg); }
 
   // ---------- 怨气值/工时券 ----------
-  /** 击杀僵尸：加怨气值+概率掉工时券 */
+  /** 击杀僵尸：加怨气值+概率掉工时券+连击得分 */
   onZombieKilled(zombie) {
     this.rage = Math.min(CFG.RAGE_MAX, this.rage + CFG.RAGE_PER_KILL);
     this.ui.setRage(this.rage, CFG.RAGE_MAX);
+    // 连击系统：3秒内连续击杀
+    this.killStreak++;
+    this.streakTimer = 3;
+    this.totalKills++;
+    // 得分：基础10分 + Boss 50分 + 连击奖励
+    let pts = zombie.type === 'boss' ? 50 : 10;
+    if (this.killStreak >= 3) pts += this.killStreak * 5;
+    this.score += pts;
+    this._updateKillDisplay();
+    // 高连击显示特效
+    if (this.killStreak >= 5 && this.killStreak % 5 === 0) {
+      const p = zombie.mesh.position.clone(); p.y += 2.5;
+      const text = this.killStreak >= 10 ? '🔥 ' + this.killStreak + '连杀!' : '⚡ ' + this.killStreak + '连击!';
+      this.effects.spawnFloatText(this.grid.group, p, text, this.killStreak >= 10 ? '#ffd700' : '#ff6600');
+    }
     if (Math.random() < CFG.TICKET_DROP_CHANCE) {
       this.tickets++;
       this.ui.updateTickets(this.tickets);
@@ -550,6 +815,7 @@ class Game {
   onBossSpawn() {
     this.bossCount++;
     if (this.bossCount === 1) { this.ui.setBossDarken(true); this.audio.play('basehit'); }
+    this.shake(0.6, 0.5);
   }
   onBossDie() { this.bossCount = Math.max(0, this.bossCount - 1); if (this.bossCount === 0) this.ui.setBossDarken(false); }
   onBossKilled() {
@@ -558,6 +824,7 @@ class Game {
     const pos = this.zombies.length > 0 ? this.zombies[this.zombies.length - 1].mesh.position.clone() : new THREE.Vector3(0, 1, 0);
     this.effects.spawnFloatText(this.grid.group, pos, '+' + drop + '🐟', '#ffd34d');
     this.ui.toast('🎉 击杀大老板！掉落' + drop + '摸鱼值！');
+    this.shake(0.5, 0.4);
   }
 
   _checkEnd() {
@@ -572,6 +839,9 @@ class Game {
   _end(win) {
     // 兼容旧调用：失败走关卡结算
     this.running = false;
+    this.paused = false;
+    this.ui.setPaused(false);
+    this.ui.hideTip();
     this.ui.clearSelection(); this.ui.setHammerMode(false);
     this.ui.setBossDarken(false); this.ui.setWeather(false); this.ui.setPoison(false);
     this.hammerMode = false;

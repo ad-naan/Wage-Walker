@@ -74,25 +74,59 @@ export class ParticleSystem {
     this.particles.push({ points, velocities, life: 1.0, maxLife: 1.0, gravity: -4 });
   }
 
+  /** 金币收集粒子(向日葵点击反馈) */
+  spawnCoin(group, pos) {
+    const N = 8;
+    for (let i = 0; i < N; i++) {
+      const geo = new THREE.SphereGeometry(0.08, 6, 5);
+      const mat = new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 1 });
+      const coin = new THREE.Mesh(geo, mat);
+      coin.position.set(pos.x + (Math.random() - 0.5) * 0.3, pos.y + 0.2, pos.z + (Math.random() - 0.5) * 0.3);
+      group.add(coin);
+      const vx = (Math.random() - 0.5) * 2;
+      const vy = 1.5 + Math.random() * 1.5;
+      const vz = (Math.random() - 0.5) * 2;
+      this.particles.push({ points: coin, velocities: [new THREE.Vector3(vx, vy, vz)], life: 0.6, maxLife: 0.6, gravity: -5, isMesh: true });
+    }
+  }
+
   update(dt, group) {
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const pt = this.particles[i];
       pt.life -= dt;
-      const arr = pt.points.geometry.attributes.position.array;
-      for (let j = 0; j < pt.velocities.length; j++) {
-        const v = pt.velocities[j];
+      if (pt.isMesh) {
+        // 网格粒子(金币等)
+        const v = pt.velocities[0];
         v.y += pt.gravity * dt;
-        arr[j * 3] += v.x * dt;
-        arr[j * 3 + 1] += v.y * dt;
-        arr[j * 3 + 2] += v.z * dt;
-      }
-      pt.points.geometry.attributes.position.needsUpdate = true;
-      pt.points.material.opacity = Math.max(0, pt.life / pt.maxLife);
-      if (pt.life <= 0) {
-        group.remove(pt.points);
-        pt.points.geometry.dispose();
-        pt.points.material.dispose();
-        this.particles.splice(i, 1);
+        pt.points.position.x += v.x * dt;
+        pt.points.position.y += v.y * dt;
+        pt.points.position.z += v.z * dt;
+        pt.points.material.opacity = Math.max(0, pt.life / pt.maxLife);
+        pt.points.scale.setScalar(Math.max(0.1, pt.life / pt.maxLife));
+        if (pt.life <= 0) {
+          group.remove(pt.points);
+          if (pt.points.geometry) pt.points.geometry.dispose();
+          if (pt.points.material) pt.points.material.dispose();
+          this.particles.splice(i, 1);
+        }
+      } else {
+        // 点粒子(默认)
+        const arr = pt.points.geometry.attributes.position.array;
+        for (let j = 0; j < pt.velocities.length; j++) {
+          const v = pt.velocities[j];
+          v.y += pt.gravity * dt;
+          arr[j * 3] += v.x * dt;
+          arr[j * 3 + 1] += v.y * dt;
+          arr[j * 3 + 2] += v.z * dt;
+        }
+        pt.points.geometry.attributes.position.needsUpdate = true;
+        pt.points.material.opacity = Math.max(0, pt.life / pt.maxLife);
+        if (pt.life <= 0) {
+          group.remove(pt.points);
+          pt.points.geometry.dispose();
+          pt.points.material.dispose();
+          this.particles.splice(i, 1);
+        }
       }
     }
   }

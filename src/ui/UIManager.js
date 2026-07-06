@@ -47,6 +47,14 @@ export class UIManager {
         <span class="stat-value" id="wave-display" style="color:#8effc1">0</span>
         <span class="stat-label" id="wave-total">/0</span>
         <span class="stat-label">波</span>
+      </div>
+      <div class="stat-block" id="enemy-count-block">
+        <span class="stat-label">来袭</span>
+        <span class="stat-value" id="enemy-count" style="color:#ff8a80">0</span>
+      </div>
+      <div class="stat-block" id="score-block">
+        <span class="stat-label">得分</span>
+        <span class="stat-value" id="score-value" style="color:#66ccff">0</span>
       </div>`;
     root.appendChild(top);
 
@@ -99,6 +107,26 @@ export class UIManager {
     root.appendChild(modal);
     this.modal = modal;
 
+    // 波次来临横幅
+    const waveBanner = document.createElement('div');
+    waveBanner.id = 'wave-banner';
+    root.appendChild(waveBanner);
+    this.waveBanner = waveBanner;
+
+    // 暂停遮罩
+    const pauseOverlay = document.createElement('div');
+    pauseOverlay.id = 'pause-overlay';
+    pauseOverlay.innerHTML = '<div class="pause-text">⏸ 已暂停</div><div class="pause-hint">按 [空格] 或点击暂停按钮继续<br>[1] [2] [3] 切换游戏速度</div>';
+    root.appendChild(pauseOverlay);
+    this.pauseOverlay = pauseOverlay;
+
+    // 教程提示框
+    const tutorialTip = document.createElement('div');
+    tutorialTip.id = 'tutorial-tip';
+    root.appendChild(tutorialTip);
+    this.tutorialTip = tutorialTip;
+    this._tipTimer = null;
+
     // 浮动提示
     const toast = document.createElement('div');
     toast.id = 'toast';
@@ -147,15 +175,12 @@ export class UIManager {
     overlay.id = 'overlay';
     overlay.innerHTML = `
       <h1 id="overlay-title">植物大战僵尸：牛马版</h1>
-      <p id="overlay-desc">坚守工位的打工人，种植牛马植物抵御僵尸，坚持15分钟到下班！</p>
+      <p id="overlay-desc">坚守工位的打工人，种植牛马植物抵御僵尸，逐关挑战直至年终决战！</p>
       <button id="start-btn">开始搬砖</button>
-      <div class="ctrl-hint">
-        点击向日葵手动摸鱼(小心老板路过) | 长按豌豆射手蓄力年终总结 | 坚果墙点击喊福报<br>
-        植物卡片可拖拽到格子放置 | 公章 行政审批员减速射手(75摸鱼值)<br>
-        换鱼锤自动砸最前排僵尸(定身+伤害翻倍) | 甩锅保护最前排(30摸鱼值)<br>
-        续命咖啡回血加速 | 日报生成器产出×3 | 反向优化坚果墙满血<br>
-        终极摸鱼(怒气) | 紧急会议(怒气)秒杀 | 钉钉轰炸(怒气)全屏伤害<br>
-        天气之子(工时券)暴雨减速 | 已读乱回(工时券)Boss专用<br>
+      <div class="ctrl-hint" style="font-size:11px; color:rgba(255,255,255,.4); margin-top:16px; line-height:1.8; text-align:center; max-width:640px;">
+        拖拽卡片放置植物 | 点击向日葵社畜收摸鱼值<br>
+        摸鱼值(🐟)种植物 | 怒气值释放大招 | 工时券(🎫)用消耗品<br>
+        [空格] 暂停 | [1][2][3] 切换游戏速度 | 右键拖拽旋转视角<br>
         击杀僵尸积攒怨气值释放大招，概率掉落工时券
       </div>
     `;
@@ -164,6 +189,61 @@ export class UIManager {
     this.overlayTitle = overlay.querySelector('#overlay-title');
     this.overlayDesc = overlay.querySelector('#overlay-desc');
     this.startBtn = overlay.querySelector('#start-btn');
+
+    // 帮助按钮
+    const helpBtn = document.createElement('div');
+    helpBtn.id = 'help-btn';
+    helpBtn.textContent = '?';
+    helpBtn.title = '游戏帮助';
+    helpBtn.addEventListener('click', () => this._toggleHelp());
+    root.appendChild(helpBtn);
+
+    // 帮助弹窗
+    const helpOverlay = document.createElement('div');
+    helpOverlay.id = 'help-overlay';
+    helpOverlay.className = 'hidden';
+    helpOverlay.innerHTML = `
+      <div class="help-box">
+        <div class="help-title">游戏说明</div>
+        <div class="help-section">
+          <h3>基本玩法</h3>
+          <p>僵尸从左侧来袭，目标是保护右侧工位不被攻破。</p>
+          <ul>
+            <li><b>向日葵社畜</b>：生产摸鱼值，点击额外加成（小心老板巡逻）</li>
+            <li><b>PPT射手</b>：核心输出，发射文档弹丸攻击僵尸</li>
+            <li><b>996坚果墙</b>：肉盾，高血量阻挡僵尸前进</li>
+            <li><b>行政审批员</b>：远程攻击+减速效果</li>
+          </ul>
+        </div>
+        <div class="help-section">
+          <h3>资源系统</h3>
+          <p><b>摸鱼值</b>：种植和技能消耗，向日葵生产+被动产出</p>
+          <p><b>怨气值</b>：击杀僵尸积累，满100释放大招</p>
+          <p><b>工时券</b>：击杀概率掉落，用于特殊消耗品</p>
+        </div>
+        <div class="help-section">
+          <h3>操作快捷键</h3>
+          <ul>
+            <li>点击/拖拽底部卡片选择植物，再点草地放置</li>
+            <li><b>[空格]</b> 暂停/继续游戏</li>
+            <li><b>[1][2][3]</b> 切换游戏速度 1x/2x/3x</li>
+            <li><b>[C]</b> 切换预设视角</li>
+            <li><b>右键拖拽</b> 自由旋转视角，滚轮缩放</li>
+            <li>PPT射手<b>长按</b>蓄力可发射年终总结大招（消耗摸鱼值）</li>
+            <li>点击向日葵社畜产额外摸鱼值（有风险！）</li>
+          </ul>
+        </div>
+        <div class="help-section">
+          <h3>特殊事件</h3>
+          <p><b>牛头指导</b>：定期弹出，选择不同效果。可用摸鱼锤敲碎幽灵打断！</p>
+          <p><b>老板巡逻</b>：点向日葵时随机触发，扣摸鱼值</p>
+        </div>
+        <button class="help-close" id="help-close-btn">明白了！</button>
+      </div>`;
+    root.appendChild(helpOverlay);
+    helpOverlay.querySelector('#help-close-btn').addEventListener('click', () => this._toggleHelp());
+    helpOverlay.addEventListener('click', (e) => { if (e.target === helpOverlay) this._toggleHelp(); });
+    this.helpOverlay = helpOverlay;
 
     window.addEventListener('mousemove', (e) => {
       if (this._hammerMode) {
@@ -183,7 +263,30 @@ export class UIManager {
     if (!bar) return;
     bar.innerHTML = '';
     this.cardEls = {};
-    for (const c of this.cardsConfig) {
+
+    // 按类型分组: 植物 → 技能 → 大招 → 工时券 → 特殊
+    const groups = [
+      { types: ['sunflower','peashooter','wallnut','auditor'], label: '' },
+      { filter: (c) => c.isSkill && !c.isSpecial, label: 'sep' },
+      { filter: (c) => c.isUlt, label: 'sep-ult' },
+      { filter: (c) => c.isTicket, label: 'sep-ticket' },
+      { filter: (c) => c.isSpecial, label: 'sep-special' },
+    ];
+
+    const placed = new Set();
+    for (const cfg of this.cardsConfig) {
+      if (placed.has(cfg.type)) continue;
+      placed.add(cfg.type);
+      const c = cfg;
+
+      // 在技能组前加分隔线
+      const prevCard = this.cardsConfig[this.cardsConfig.indexOf(c) - 1];
+      if (prevCard && !prevCard.isSkill && c.isSkill) {
+        const sep = document.createElement('div');
+        sep.className = 'card-sep';
+        bar.appendChild(sep);
+      }
+
       const card = document.createElement('div');
       const cls = c.isSpecial ? 'card special-card' : c.isUlt ? 'card ult-card' : c.isTicket ? 'card ticket-card' : c.isSkill ? 'card skill-card' : 'card';
       card.className = cls;
@@ -276,6 +379,32 @@ export class UIManager {
     document.getElementById('wave-total').textContent = '/' + total;
   }
 
+  /** 显示波次来临横幅 */
+  showWaveBanner(waveNum, totalWaves, text) {
+    this.waveBanner.innerHTML = `第 ${waveNum}/${totalWaves} 波<span class="wave-sub">${text}</span>`;
+    this.waveBanner.classList.add('show');
+    clearTimeout(this._waveBannerTimer);
+    this._waveBannerTimer = setTimeout(() => this.waveBanner.classList.remove('show'), 2200);
+  }
+
+  /** 显示暂停遮罩 */
+  setPaused(on) {
+    this.pauseOverlay.classList.toggle('show', on);
+  }
+
+  /** 显示教程提示 */
+  showTip(text) {
+    clearTimeout(this._tipTimer);
+    this.tutorialTip.innerHTML = '<span class="tip-icon">💡</span>' + text;
+    this.tutorialTip.classList.add('show');
+    this._tipTimer = setTimeout(() => this.tutorialTip.classList.remove('show'), 5000);
+  }
+
+  hideTip() {
+    clearTimeout(this._tipTimer);
+    this.tutorialTip.classList.remove('show');
+  }
+
   update(dt, now) {
     for (const type in this.cardEls) {
       const end = this.cardCooldowns[type] || 0;
@@ -286,8 +415,10 @@ export class UIManager {
     }
     for (const c of this.cardsConfig) {
       if (c.isUlt || (c.isTicket && c.ticketCost === 0)) continue;
+      const el = this.cardEls[c.type];
+      if (!el) continue;
       const enough = c.isTicket ? this._tickets >= c.ticketCost : (c.cost === 0 || this._resourceAfford >= c.cost);
-      if (!(this.cardCooldowns[c.type] > now)) this.cardEls[c.type].classList.toggle('disabled', !enough);
+      if (!(this.cardCooldowns[c.type] > now)) el.classList.toggle('disabled', !enough);
     }
     if (this.modal.classList.contains('show')) {
       const r = Math.max(0, this.niuDecisionEnd - now);
@@ -298,6 +429,8 @@ export class UIManager {
   updateResource(v) { document.getElementById('resource-value').textContent = v; this._resourceAfford = v; }
   updateTickets(v) { this.setTickets(v); this._tickets = v; }
   updateBaseHp(ratio) { document.getElementById('base-hp-bar').style.width = Math.max(0, ratio * 100) + '%'; }
+  updateEnemyCount(v) { const el = document.getElementById('enemy-count'); if (el) el.textContent = v; }
+  updateScore(v) { const el = document.getElementById('score-value'); if (el) el.textContent = v; }
   toast(msg) {
     this.toastEl.textContent = msg;
     this.toastEl.classList.add('show');
@@ -330,6 +463,8 @@ export class UIManager {
     this.startBtn.textContent = result ? '再来一局' : '开始搬砖';
   }
   hideOverlay() { this.overlay.classList.add('hidden'); }
+
+  _toggleHelp() { this.helpOverlay.classList.toggle('hidden'); }
 
   /** 关卡结算弹窗(转发给 LevelUI) */
   showLevelResult(grade, level, maxUnlocked, failed = false, hpRatio = 0) {

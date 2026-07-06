@@ -20,9 +20,17 @@ export class LevelUI {
     // 选关界面
     const menu = document.createElement('div');
     menu.id = 'level-menu';
+    const taunts = [
+      '今天也要努力(摸鱼)打工！',
+      '坚持到下班就是胜利！',
+      '你有几个肝可以给公司献？',
+      '打工人，打工魂，打工都是人上人',
+      '向日葵会发光，但你的头发不会了',
+      '只要不背锅，(markdown)就是好员工',
+    ];
     menu.innerHTML = `
       <h1 class="lm-title">🌵 植物大战僵尸：牛马版</h1>
-      <p class="lm-subtitle">选择关卡，开始你的职场生存之旅</p>
+      <p class="lm-subtitle">${taunts[Math.floor(Math.random() * taunts.length)]}</p>
       <div class="lm-grid" id="lm-grid"></div>`;
     root.appendChild(menu);
     this.menu = menu;
