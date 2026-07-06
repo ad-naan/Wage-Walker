@@ -70,6 +70,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #14100c;
 #combo-display { display: block; margin-top: 2px; }
 
 /* ===== 顶部 HUD 状态栏 ===== */
+/* ===== 顶部 HUD 状态栏 ===== */
 #top-bar {
   position: absolute; top: 10px; left: 12px; right: 12px; height: 58px;
   display: flex; align-items: center; gap: 16px; padding: 0 16px;
@@ -187,12 +188,19 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #14100c;
 
 /* ===== 牛头事件弹窗 ===== */
 #niu-modal {
+<<<<<<< HEAD
   position: absolute; right: 16px; top: 140px; width: 340px;
   background: linear-gradient(180deg, rgba(73,53,29,.96), rgba(25,18,11,.98));
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(247,201,72,.52);
   border-radius: 8px; padding: 16px 18px; color: #fff; display: none;
   box-shadow: var(--ui-shadow);
+=======
+  position: absolute; right: 20px; top: 84px; width: 380px;
+  background: linear-gradient(180deg,#3a2a10,#20140a); border: 3px solid #ffb300;
+  border-radius: 16px; padding: 18px 20px; color: #fff; display: none;
+  box-shadow: 0 0 44px rgba(255,179,0,.6);
+>>>>>>> 8050ec337d4ace51f781c915987ae0bf0ea5ae2d
 }
 #niu-modal.show { display: block; animation: pop .25s ease; }
 @keyframes pop { from{opacity:0; transform: translateX(20px);} to{opacity:1; transform: translateX(0);} }
@@ -208,12 +216,21 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #14100c;
 
 /* ===== 浮动 Toast 提示 ===== */
 #toast {
+<<<<<<< HEAD
   position: absolute; top: 82px; left: 50%; transform: translateX(-50%);
   background: linear-gradient(180deg, rgba(55,40,24,.95), rgba(18,14,10,.96)); color: #ffe08a; padding: 9px 20px; border-radius: 8px;
   font-size: 13px; font-weight: 600; opacity: 0; transition: opacity .25s; pointer-events: none; white-space: nowrap;
   max-width: 90vw; text-align: center;
   border: 1px solid rgba(247,201,72,.42); backdrop-filter: blur(8px);
   box-shadow: 0 10px 28px rgba(0,0,0,.35);
+=======
+  position: absolute; top: 88px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,.82); color: #ffd34d; padding: 11px 24px; border-radius: 24px;
+  font-size: 17px; font-weight: bold; opacity: 0; transition: opacity .3s; pointer-events: none; white-space: nowrap;
+  max-width: 90vw; text-align: center;
+  text-shadow: 0 1px 4px rgba(0,0,0,.9);
+  border: 1px solid rgba(255,211,77,.3);
+>>>>>>> 8050ec337d4ace51f781c915987ae0bf0ea5ae2d
 }
 #toast.show { opacity: 1; }
 
@@ -225,10 +242,10 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #14100c;
 
 /* ===== 老板警告横幅 ===== */
 #boss-warning {
-  position: absolute; top: 60px; left: 50%; transform: translateX(-50%) translateY(-100%);
-  background: linear-gradient(90deg, rgba(200,0,0,.9), rgba(255,60,0,.9));
-  color: #fff; padding: 8px 36px; border-radius: 0 0 16px 16px;
-  font-size: 16px; font-weight: 800; text-shadow: 0 2px 4px rgba(0,0,0,.5);
+  position: absolute; top: 78px; left: 50%; transform: translateX(-50%) translateY(-100%);
+  background: linear-gradient(90deg, #ff0000, #ff6600, #ff0000);
+  color: #fff; padding: 10px 40px; border-radius: 0 0 20px 20px;
+  font-size: 18px; font-weight: bold; text-shadow: 0 2px 4px #000;
   z-index: 38; opacity: 0; pointer-events: none; white-space: nowrap;
   box-shadow: 0 4px 24px rgba(255,0,0,.5);
   transition: transform .3s ease, opacity .3s ease;
@@ -255,6 +272,41 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #14100c;
   opacity: 0; transition: opacity .6s;
 }
 #boss-darken.show { opacity: 1; }
+
+/* 棋盘调试帮助面板(默认隐藏，按H显示) */
+#debug-help {
+  position: absolute; right: 20px; top: 70px; width: 320px; z-index: 50;
+  background: linear-gradient(180deg, rgba(20,28,44,.95), rgba(16,22,40,.92));
+  border: 2px solid #4af; border-radius: 12px; padding: 12px 14px;
+  color: #cde; font-size: 12px; line-height: 1.7; pointer-events: auto;
+  box-shadow: 0 0 24px rgba(68,170,255,.35); display: none;
+}
+.dh-title { font-size: 15px; font-weight: bold; color: #4af; margin-bottom: 6px; text-align: center; display: flex; justify-content: center; align-items: center; }
+.dh-close { cursor: pointer; color: #f66; margin-left: 8px; font-size: 18px; }
+.dh-close:hover { color: #f88; }
+.dh-section { background: rgba(0,0,0,.25); border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; }
+.dh-section b { color: #ffd34d; }
+.dh-readout { background: rgba(0,0,0,.4); border-radius: 6px; padding: 6px 8px; color: #8effc1; font-family: monospace; font-size: 11px; }
+
+/* 怨气值条 */
+#rage-bar {
+  position: absolute; right: 20px; top: 84px; z-index: 10;
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(20,10,20,.8); padding: 6px 12px; border-radius: 20px;
+  border: 1px solid #ff3333;
+}
+.rage-label { font-size: 14px; }
+.rage-bg { width: 100px; height: 14px; background: #220; border-radius: 7px; overflow: hidden; }
+.rage-fill { height: 100%; width: 0%; background: linear-gradient(90deg,#ff3333,#ff6600); transition: width .3s; }
+.rage-text { font-size: 11px; color: #ff8866; min-width: 40px; }
+
+/* 大招卡片 & 工时券卡片 */
+.card.ult-card { background: linear-gradient(180deg,#3a1030,#1c0a18); border-color: #ff3333; }
+.card.ult-card .card-cost { color: #ff6644; }
+.card.ticket-card { background: linear-gradient(180deg,#2a1a40,#140a20); border-color: #9050ff; }
+.card.ticket-card .card-cost { color: #c9a0ff; }
+
+/* 白闪(团建大合照) */
 #white-flash {
   position: absolute; inset: 0; pointer-events: none; z-index: 36;
   background: #fff; opacity: 0;

@@ -79,10 +79,10 @@ export const LEVELS = [
     special: { type: 'coffee_boost', name: '续命咖啡强化版', desc: '回血40%+攻速×1.5持续12秒', limit: 2 },
   },
 
-  // ===== LEVEL 5: 工贼叛乱 =====
+  // ===== LEVEL 5: 大老板降临 =====
   {
     id: 5,
-    name: '工贼叛乱',
+    name: '大老板降临',
     icon: '😈',
     desc: '办公室出叛徒，向日葵被策反',
     startResource: 110,
@@ -113,7 +113,7 @@ export const LEVELS = [
       W([{ type: 'client', count: 5, delay: 1.2 }, { type: 'kpi', count: 2, delay: 1.5 }, { type: 'boss', count: 1, delay: 0 }, { type: 'traitor', count: 1, delay: 5 }]),
       W([{ type: 'boss', count: 2, delay: 3 }, { type: 'traitor', count: 1, delay: 2 }]),
       W([{ type: 'boss', count: 3, delay: 2.5 }, { type: 'traitor', count: 2, delay: 3 }]),
-      W([{ type: 'super_traitor', count: 1, delay: 0 }]), // 超级工贼
+      W([{ type: 'super_traitor', count: 1, delay: 0 }]), // 超级大老板
     ],
     unlocks: ['ult_moyu', 'ult_meeting', 'ult_bomb'],
     special: { type: 'year_bonus', name: '年终奖炸弹', desc: '全屏僵尸扣50%血+眩晕5秒', limit: 1 },

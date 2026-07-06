@@ -152,7 +152,7 @@ export class LevelSystem {
 
   _spawnZombie(game, type, hpMul) {
     const row = Math.floor(Math.random() * game.cfg.ROWS);
-    // 超级工贼
+    // 超级大老板
     if (type === 'super_traitor') {
       const z = game._createZombie('traitor', row);
       z.maxHp = z.hp = Math.round(z.hp * 3);
@@ -160,7 +160,7 @@ export class LevelSystem {
       z._traitorInterval = 0.75; // 策反频率翻倍
       game.zombies.push(z);
       game.audio.play('spawn_traitor');
-      game.ui.toast('💀 超级工贼出现！hp×3 速度×1.5 策反翻倍！');
+      game.ui.toast('💀 超级大老板出现！hp×3 速度×1.5 策反翻倍！');
       return;
     }
     const z = game._createZombie(type, row);
