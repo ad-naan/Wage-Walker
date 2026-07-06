@@ -455,18 +455,20 @@ class Game {
     // 大招(消耗怨气值)
     if (cfg.isUlt) {
       if (this.rage < cfg.rageCost) { this.ui.toast('怨气值不足！'); return; }
-      this.rage -= cfg.rageCost;
-      this.ui.setRage(this.rage, CFG.RAGE_MAX);
-      this._useUlt(type);
+      if (this._useUlt(type)) {
+        this.rage -= cfg.rageCost;
+        this.ui.setRage(this.rage, CFG.RAGE_MAX);
+      }
       return;
     }
 
     // 工时券消耗品
     if (cfg.isTicket) {
       if (this.tickets < cfg.ticketCost) { this.ui.toast('工时券不足！'); return; }
-      this.tickets -= cfg.ticketCost;
-      this.ui.updateTickets(this.tickets);
-      this._useTicket(type);
+      if (this._useTicket(type)) {
+        this.tickets -= cfg.ticketCost;
+        this.ui.updateTickets(this.tickets);
+      }
       return;
     }
 
@@ -476,9 +478,10 @@ class Game {
       // 终极摸鱼期间免费
       const cost = this.items.isUltMoyu() ? 0 : cfg.cost;
       if (cost > 0 && !this.resource.canAfford(cost)) { this.ui.toast('摸鱼值不足！'); return; }
-      if (cost > 0) this.resource.spend(cost);
-      this._setCD(type, cfg.cd);
-      this._useSkill(type);
+      if (this._useSkill(type)) {
+        if (cost > 0) this.resource.spend(cost);
+        this._setCD(type, cfg.cd);
+      }
       return;
     }
 
@@ -487,27 +490,34 @@ class Game {
     if (this.clock < (this.cardCooldowns[type] || 0)) { this.ui.toast('卡片冷却中…'); return; }
     const plantCost = this.items.isUltMoyu() ? 0 : cfg.cost;
     if (plantCost > 0 && !this.resource.canAfford(plantCost)) { this.ui.toast('摸鱼值不足！'); return; }
-    if (plantCost > 0) this.resource.spend(plantCost);
     this.ui.selectCard(type); this.selectedCard = type;
   }
 
   _setCD(type, cd) { this.cardCooldowns[type] = this.clock + cd; this.ui.setCardCooldown(type, this.clock + cd); }
 
   _useSkill(type) {
-    if (type === 'hammer') { this.items.hammer(this); return; }
+    if (type === 'hammer') return this.items.hammer(this) !== false;
     // 特供道具(本关限定，需校验使用次数)
     const special = this.levels.getSpecial();
     if (special && type === special.type) {
-      if (!this.levels.canUseSpecial()) { this.ui.toast('特供道具次数已用完！'); return; }
+      if (!this.levels.canUseSpecial()) { this.ui.toast('特供道具次数已用完！'); return false; }
       const fn = this.items[type];
-      if (fn) { fn.call(this.items, this); this.levels.useSpecial(); }
-      return;
+      if (!fn) return false;
+      const used = fn.call(this.items, this) !== false;
+      if (used) this.levels.useSpecial();
+      return used;
     }
     const fn = { shield:1, read:1, photo:1, mine:1, tiaoxiu:1, dabing:1, coffee:1, report:1, optimize:1 }[type];
-    if (fn) this.items[type](this);
+    return fn ? this.items[type](this) !== false : false;
   }
-  _useUlt(type) { if (this.items[{ ult_moyu:'ultMoyu', ult_meeting:'ultMeeting', ult_bomb:'ultBomb' }[type]]) this.items[{ ult_moyu:'ultMoyu', ult_meeting:'ultMeeting', ult_bomb:'ultBomb' }[type]](this); }
-  _useTicket(type) { const fn = { weather:'weather', readback:'readback' }[type]; if (fn) this.items[fn](this); }
+  _useUlt(type) {
+    const fn = { ult_moyu:'ultMoyu', ult_meeting:'ultMeeting', ult_bomb:'ultBomb' }[type];
+    return fn && this.items[fn] ? this.items[fn](this) !== false : false;
+  }
+  _useTicket(type) {
+    const fn = { weather:'weather', readback:'readback' }[type];
+    return fn ? this.items[fn](this) !== false : false;
+  }
 
   _toggleHammer() {
     this.hammerMode = !this.hammerMode;

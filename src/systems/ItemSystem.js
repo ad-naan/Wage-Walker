@@ -86,7 +86,7 @@ export class ItemSystem {
 
   /** 甩锅盾牌：释放冲击波将所有僵尸击退3格(向左退回)，10%概率闪腰 */
   shield(game) {
-    if (game.zombies.filter((z) => !z.dead).length === 0) { game.ui.toast('没有僵尸可甩锅'); return; }
+    if (game.zombies.filter((z) => !z.dead).length === 0) { game.ui.toast('没有僵尸可甩锅'); return false; }
     const knockback = game.cfg.CELL * 3; // 击退3格
     for (const z of game.zombies) {
       if (z.dead) continue;
@@ -101,21 +101,24 @@ export class ItemSystem {
       this.plantStopTimer = 1;
       game.ui.toast('💥 甩锅闪到腰！植物停止攻击1秒');
     }
+    return true;
   }
 
   /** 已读不回：投掷气泡，最近僵尸原地发呆5秒 */
   read(game) {
     const alive = game.zombies.filter((z) => !z.dead).sort((a, b) =>
       b.mesh.position.x - a.mesh.position.x); // 最前面的
-    if (alive.length === 0) { game.ui.toast('没有僵尸可已读不回'); return; }
+    if (alive.length === 0) { game.ui.toast('没有僵尸可已读不回'); return false; }
     alive[0].stunned = 5;
     const p = alive[0].mesh.position.clone(); p.y += 1.5;
     game.effects.spawnFloatText(game.grid.group, p, '已读', '#88ccff');
     game.ui.toast('气泡已读不回！僵尸发呆5秒');
+    return true;
   }
 
   /** 团建大合照：全屏致盲3秒+扣10%血量 */
   photo(game) {
+    if (game.zombies.filter((z) => !z.dead).length === 0) { game.ui.toast('没有僵尸可拍照'); return false; }
     for (const z of game.zombies) {
       if (z.dead) continue;
       z.stunned = 3;
@@ -125,6 +128,7 @@ export class ItemSystem {
     game.ui.flashWhite();
     game.particles.spawnUlt(game.grid.group);
     game.ui.toast('📷 团建大合照！全屏致盲3秒，扣10%血');
+    return true;
   }
 
   // ========== 第二类：战术陷阱/防御型 ==========
@@ -142,6 +146,7 @@ export class ItemSystem {
     game.grid.group.add(mesh);
     this.mines.push({ mesh, row, x: pos.x, exploded: false });
     game.ui.toast('💩 带薪拉屎地雷已埋设！');
+    return true;
   }
 
   _updateMines(dt, game) {
@@ -182,13 +187,14 @@ export class ItemSystem {
       if (p.dead) continue;
       if (!target || p.col > target.col) target = p;
     }
-    if (!target) { game.ui.toast('没有植物可套护盾'); return; }
+    if (!target) { game.ui.toast('没有植物可套护盾'); return false; }
     target.shieldHp = 500;
     target.shieldTimer = 10;
     target.invincible = 10;
     const pos = target.mesh.position.clone(); pos.y += 1.2;
     game.effects.spawnFloatText(game.grid.group, pos, '调休护盾', '#66ccff');
     game.ui.toast('📋 调休单护盾！最前排植物+500护盾10秒');
+    return true;
   }
 
   /** 大饼诱饵：放一张大饼，吸引周围僵尸走过去啃食 */
@@ -203,6 +209,7 @@ export class ItemSystem {
     game.grid.group.add(mesh);
     this.baits.push({ mesh, row, x: pos.x, hp: 5, life: 15 });
     game.ui.toast('🥞 大饼诱饵！僵尸都去吃饼了');
+    return true;
   }
 
   _updateBaits(dt, game) {
@@ -245,6 +252,7 @@ export class ItemSystem {
       game.ui.toast('⚠️ 咖啡因中毒！屏幕开始扭曲…');
       game.ui.setPoison(true);
     }
+    return true;
   }
 
   /** 日报自动生成器：向日葵15秒内产出翻三倍 */
@@ -252,6 +260,7 @@ export class ItemSystem {
     this.reportMul = 3;
     this.reportTimer = 15;
     game.ui.toast('📰 日报自动生成器！向日葵产出×3持续15秒');
+    return true;
   }
 
   /** 反向优化：所有坚果墙血量回满+临时+50%最大血量 */
@@ -264,7 +273,9 @@ export class ItemSystem {
       p.hp = p.maxHp;
       count++;
     }
-    game.ui.toast(count > 0 ? `⚙️ 反向优化！${count}个坚果墙满血+50%上限` : '没有坚果墙可优化');
+    if (count === 0) { game.ui.toast('没有坚果墙可优化'); return false; }
+    game.ui.toast(`⚙️ 反向优化！${count}个坚果墙满血+50%上限`);
+    return true;
   }
 
   // ========== 第四类：终极技能(消耗怨气值) ==========
@@ -273,6 +284,7 @@ export class ItemSystem {
   ultMoyu(game) {
     this.ultMoyuTimer = 10;
     game.ui.toast('😎 终极摸鱼！10秒内道具全免费+产出翻倍');
+    return true;
   }
 
   /** 紧急会议：全屏僵尸集合开会，5秒后非Boss暴毙 */
@@ -328,6 +340,7 @@ export class ItemSystem {
     this.weatherType = 'rain';
     game.ui.setWeather(true);
     game.ui.toast('🌧️ 天气之子！暴雨降临，僵尸减速60%');
+    return true;
   }
 
   /** 已读乱回：对Boss扣20%最大血量 */
@@ -354,6 +367,7 @@ export class ItemSystem {
     const pos = new THREE.Vector3(0, 1, 0);
     game.effects.spawnFloatText(game.grid.group, pos, '+40%工位', '#44dd44');
     game.ui.toast('☕ 续命咖啡强化版！回血40%+攻速×1.5持续12秒，免疫中毒');
+    return true;
   }
 
   /** 应急日报系统(Lv5特供)：所有向日葵立即产出+100摸鱼值，免疫工贼策反15秒 */
@@ -371,13 +385,14 @@ export class ItemSystem {
     }
     this.emergencyReportTimer = 15; // 免疫策反时长
     game.ui.toast('🛡️ 应急日报系统！向日葵产出+100🐟并免疫策反15秒');
+    return true;
   }
 
   /** 年终奖炸弹(Lv6特供)：全屏僵尸扣当前血量50%+眩晕5秒 */
   year_bonus(game) {
     if (game.zombies.filter((z) => !z.dead).length === 0) {
       game.ui.toast('没有僵尸可炸');
-      return;
+      return false;
     }
     for (const z of game.zombies) {
       if (z.dead) continue;
@@ -391,6 +406,7 @@ export class ItemSystem {
     game.ui.flashWhite();
     game.ui.toast('🎆 年终奖炸弹！全屏僵尸扣50%血+眩晕5秒');
     game.audio.play('die');
+    return true;
   }
 
   /** 清理场上陷阱(新一局) */
