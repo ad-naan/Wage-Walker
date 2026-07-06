@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import grassBoardUrl from '../assets/tiles/grass-board.png';
+import officeBoardUrl from '../assets/tiles/office-board.png';
+import spawnGateUrl from '../assets/tiles/spawn-gate.png';
 
 /**
  * 网格系统：生成 5x9 草地棋盘，处理 行/列 <-> 世界坐标 转换，管理地块占用。
@@ -16,8 +19,36 @@ export class GridSystem {
     this.group.position.set(0, 0, 0);
     this.scene.add(this.group);
     this.tiles = []; // tiles[r][c] = { mesh, occupied, baseColor }
+    this.materials = this.createMaterials();
     this.buildGrid();
     this.buildLandmarks();
+  }
+
+  createTexture(url) {
+    const tex = new THREE.TextureLoader().load(url);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    tex.wrapS = THREE.ClampToEdgeWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    return tex;
+  }
+
+  createMaterials() {
+    const grassTex = this.createTexture(grassBoardUrl);
+    const officeTex = this.createTexture(officeBoardUrl);
+    const spawnTex = this.createTexture(spawnGateUrl);
+    return {
+      grassA: new THREE.MeshLambertMaterial({ map: grassTex, color: 0xffffff }),
+      grassB: new THREE.MeshLambertMaterial({ map: grassTex, color: 0xd7efbd }),
+      gap: new THREE.MeshLambertMaterial({ color: 0x27391f }),
+      earth: new THREE.MeshLambertMaterial({ color: 0x3b2718 }),
+      spawn: new THREE.MeshLambertMaterial({ map: spawnTex, color: 0xffffff }),
+      spawnDark: new THREE.MeshLambertMaterial({ color: 0x4c241f }),
+      office: new THREE.MeshLambertMaterial({ map: officeTex, color: 0xffffff }),
+      officeDark: new THREE.MeshLambertMaterial({ color: 0x2e425f }),
+      desk: new THREE.MeshLambertMaterial({ color: 0x8a6746 }),
+      monitor: new THREE.MeshLambertMaterial({ color: 0x26354f }),
+    };
   }
 
   buildGrid() {
@@ -27,7 +58,7 @@ export class GridSystem {
         const pos = this.gridToWorld(r, c);
         const geo = new THREE.BoxGeometry(this.cell * 1.0, 0.2, this.cell * 1.0);
         const color = (r + c) % 2 === 0 ? 0x5fa84a : 0x4f9a3a;
-        const mat = new THREE.MeshLambertMaterial({ color });
+        const mat = ((r + c) % 2 === 0 ? this.materials.grassA : this.materials.grassB).clone();
         const mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(pos.x, -0.1, pos.z);
         mesh.receiveShadow = true;
@@ -39,16 +70,14 @@ export class GridSystem {
         // 格子间的缝隙(深色线条，增强棋盘感)
         if (c < this.cols - 1) {
           const gapGeo = new THREE.BoxGeometry(0.03, 0.22, this.cell * 1.0);
-          const gapMat = new THREE.MeshLambertMaterial({ color: 0x2a3a1a });
-          const gap = new THREE.Mesh(gapGeo, gapMat);
+          const gap = new THREE.Mesh(gapGeo, this.materials.gap);
           const nx = this.gridToWorld(r, c + 1);
           gap.position.set(nx.x - this.cell * 0.5, -0.1, nx.z);
           this.group.add(gap);
         }
         if (r < this.rows - 1) {
           const gapGeo = new THREE.BoxGeometry(this.cell * 1.0, 0.22, 0.03);
-          const gapMat = new THREE.MeshLambertMaterial({ color: 0x2a3a1a });
-          const gap = new THREE.Mesh(gapGeo, gapMat);
+          const gap = new THREE.Mesh(gapGeo, this.materials.gap);
           const nz = this.gridToWorld(r + 1, c);
           gap.position.set(nz.x, -0.1, nz.z + this.cell * 0.5);
           this.group.add(gap);
@@ -59,7 +88,7 @@ export class GridSystem {
     // 棋盘外边缘围挡(草地下的土堤)
     const halfW = (this.cols * this.cell) / 2 + 0.15;
     const halfD = (this.rows * this.cell) / 2 + 0.15;
-    const wallMat = new THREE.MeshLambertMaterial({ color: 0x3a2a1a });
+    const wallMat = this.materials.earth;
     // 前后面
     for (let side = -1; side <= 1; side += 2) {
       const wallGeo = new THREE.BoxGeometry(halfW * 2 + 0.3, 0.35, 0.3);
@@ -86,8 +115,7 @@ export class GridSystem {
 
     // 左侧房区：暗红色长条 + 稍微抬高
     const houseGeo = new THREE.BoxGeometry(this.cell * 1.2, 0.5, totalLen + 0.5);
-    const houseMat = new THREE.MeshLambertMaterial({ color: 0x8a3a3a });
-    const house = new THREE.Mesh(houseGeo, houseMat);
+    const house = new THREE.Mesh(houseGeo, this.materials.spawn);
     house.position.set(left, 0.1, 0);
     house.receiveShadow = true;
     house.castShadow = true;
@@ -97,15 +125,13 @@ export class GridSystem {
     for (let i = 0; i < 3; i++) {
       const z = (i - 1) * (totalLen / 3);
       const buildGeo = new THREE.BoxGeometry(this.cell * 0.8, 1.5, this.cell * 0.8);
-      const buildMat = new THREE.MeshLambertMaterial({ color: 0x5a2a2a });
-      const building = new THREE.Mesh(buildGeo, buildMat);
+      const building = new THREE.Mesh(buildGeo, this.materials.spawnDark);
       building.position.set(left, 0.75, z);
       building.castShadow = true;
       this.group.add(building);
       // 屋顶
       const roofGeo = new THREE.ConeGeometry(this.cell * 0.6, 0.6, 4);
-      const roofMat = new THREE.MeshLambertMaterial({ color: 0x3a1a1a });
-      const roof = new THREE.Mesh(roofGeo, roofMat);
+      const roof = new THREE.Mesh(roofGeo, this.materials.earth);
       roof.position.set(left, 1.8, z);
       roof.rotation.y = Math.PI / 4;
       roof.castShadow = true;
@@ -114,8 +140,7 @@ export class GridSystem {
 
     // 右侧工位：蓝灰色长条 + 稍微抬高
     const baseGeo = new THREE.BoxGeometry(this.cell * 1.2, 0.5, totalLen + 0.5);
-    const baseMat = new THREE.MeshLambertMaterial({ color: 0x3a4a6a });
-    const base = new THREE.Mesh(baseGeo, baseMat);
+    const base = new THREE.Mesh(baseGeo, this.materials.office);
     base.position.set(right, 0.1, 0);
     base.receiveShadow = true;
     base.castShadow = true;
@@ -127,7 +152,7 @@ export class GridSystem {
       // 桌子
       const desk = new THREE.Mesh(
         new THREE.BoxGeometry(1.2, 0.6, 0.8),
-        new THREE.MeshLambertMaterial({ color: 0x5a6a8a })
+        this.materials.desk
       );
       desk.position.set(right + 0.3, 0.3, z);
       desk.castShadow = true;
@@ -136,7 +161,7 @@ export class GridSystem {
       // 显示器
       const monitor = new THREE.Mesh(
         new THREE.BoxGeometry(0.5, 0.4, 0.05),
-        new THREE.MeshLambertMaterial({ color: 0x2a3a5a })
+        this.materials.monitor
       );
       monitor.position.set(right + 0.3, 0.85, z);
       monitor.castShadow = true;
