@@ -41,7 +41,7 @@ export class LevelSystem {
       if (!PLANT_TYPES[sp.type]) {
         PLANT_TYPES[sp.type] = {
           name: sp.name, cost: 0, hp: 0, icon: '⭐', cd: 0,
-          isSpecial: true, isSkill: true, specialLimit: sp.limit,
+          desc: sp.desc, isSpecial: true, isSkill: true, specialLimit: sp.limit,
         };
       }
     }

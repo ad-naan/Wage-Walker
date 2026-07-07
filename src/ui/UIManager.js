@@ -1,6 +1,7 @@
 import { PLANT_TYPES } from '../entities/Plant.js';
 import { getCardIcon } from '../assets/icons.js';
 import { getCardArt, getEnemyArt } from '../assets/cardArt.js';
+import { getCardInfo } from '../assets/cardInfo.js';
 
 /**
  * UI 管理器：资源条、血条、倒计时、卡片栏、牛头弹窗、道具系统UI。
@@ -86,6 +87,7 @@ export class UIManager {
         <div class="card-cost">${costText}</div>
         <div class="card-cd hidden"></div>`;
       this._applyCardArt(card, c.type);
+      this._bindCardTooltip(card, c);
       // 植物卡片用拖拽，技能卡片用点击
       if (!c.isSkill && !c.isUlt && !c.isTicket) {
         card.draggable = true;
@@ -97,6 +99,11 @@ export class UIManager {
       this.cardEls[c.type] = card;
     }
     root.appendChild(bar);
+
+    const cardTooltip = document.createElement('div');
+    cardTooltip.id = 'card-tooltip';
+    root.appendChild(cardTooltip);
+    this.cardTooltip = cardTooltip;
 
     // 牛头事件弹窗
     const modal = document.createElement('div');
@@ -265,6 +272,53 @@ export class UIManager {
     card.style.setProperty('--card-art', `url("${art}")`);
   }
 
+  _bindCardTooltip(card, config) {
+    card.addEventListener('mouseenter', () => this._showCardTooltip(card, config));
+    card.addEventListener('mousemove', () => this._positionCardTooltip(card));
+    card.addEventListener('mouseleave', () => this._hideCardTooltip());
+  }
+
+  _showCardTooltip(card, config) {
+    if (!this.cardTooltip) return;
+    const info = getCardInfo(config.type);
+    const desc = config.desc || info.desc;
+    const stats = info.stats.map((s) => `<span>${s}</span>`).join('');
+    this.cardTooltip.innerHTML = `
+      <div class="ct-head">
+        <div>
+          <div class="ct-name">${config.name}</div>
+          <div class="ct-role">${info.role}</div>
+        </div>
+        <div class="ct-cost">${this._formatCardCost(config)}</div>
+      </div>
+      <div class="ct-desc">${desc}</div>
+      <div class="ct-stats">${stats}</div>
+      <div class="ct-foot">冷却 ${config.cd || 0}s</div>`;
+    this._positionCardTooltip(card);
+    this.cardTooltip.classList.add('show');
+  }
+
+  _positionCardTooltip(card) {
+    if (!this.cardTooltip) return;
+    const rect = card.getBoundingClientRect();
+    const tooltipWidth = 260;
+    const left = Math.max(12, Math.min(window.innerWidth - tooltipWidth - 12, rect.left + rect.width / 2 - tooltipWidth / 2));
+    const bottom = Math.max(116, window.innerHeight - rect.top + 12);
+    this.cardTooltip.style.left = left + 'px';
+    this.cardTooltip.style.bottom = bottom + 'px';
+  }
+
+  _hideCardTooltip() {
+    if (this.cardTooltip) this.cardTooltip.classList.remove('show');
+  }
+
+  _formatCardCost(config) {
+    if (config.isUlt) return `怨气 ${config.rageCost}`;
+    if (config.isTicket) return `工时券 ${config.ticketCost}`;
+    if (config.cost === 0) return '免费';
+    return `摸鱼值 ${config.cost}`;
+  }
+
   /** 动态替换卡片栏(关卡切换时调用) */
   setCards(cardsConfig) {
     this.cardsConfig = cardsConfig;
@@ -312,6 +366,7 @@ export class UIManager {
         <div class="card-cost">${costText}</div>
         <div class="card-cd hidden"></div>`;
       this._applyCardArt(card, c.type);
+      this._bindCardTooltip(card, c);
       if (!c.isSkill && !c.isUlt && !c.isTicket) {
         card.draggable = true;
         card.addEventListener('dragstart', (e) => this._onCardDragStart(e, c.type));
