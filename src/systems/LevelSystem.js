@@ -127,7 +127,7 @@ export class LevelSystem {
       '终局之战！拼命！',
       '最终冲刺！不能输！',
     ];
-    game.ui.showWaveBanner(waveNum, totalWaves, bannerTexts[Math.min(waveNum - 1, bannerTexts.length - 1)]);
+    game.ui.showWaveBanner(waveNum, totalWaves, bannerTexts[Math.min(waveNum - 1, bannerTexts.length - 1)], this._getFeaturedEnemyType(wave));
     // 第一关第一波显示教程提示
     if (this.currentLevelId === 1 && this.currentWaveIndex === 0) {
       setTimeout(() => game.ui.showTip('拖拽或点击底部的卡片选择植物，然后点击草地放置！向日葵社畜生产摸鱼值，PPT射手负责攻击！'), 800);
@@ -148,6 +148,14 @@ export class LevelSystem {
         if (this.waveSpawnQueue.length === 0) this.waveCleared = true;
       }
     }
+  }
+
+  _getFeaturedEnemyType(wave) {
+    if (!wave || !Array.isArray(wave.zombies) || wave.zombies.length === 0) return null;
+    const threat = { traitor: 500, boss: 300, kpi: 120, client: 40 };
+    return wave.zombies
+      .slice()
+      .sort((a, b) => ((threat[b.type] || 0) + (b.count || 0)) - ((threat[a.type] || 0) + (a.count || 0)))[0].type;
   }
 
   _spawnZombie(game, type, hpMul) {

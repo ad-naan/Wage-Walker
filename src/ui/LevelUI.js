@@ -31,7 +31,18 @@ export class LevelUI {
     menu.innerHTML = `
       <h1 class="lm-title">🌵 植物大战僵尸：牛马版</h1>
       <p class="lm-subtitle">${taunts[Math.floor(Math.random() * taunts.length)]}</p>
-      <div class="lm-grid" id="lm-grid"></div>`;
+      <div class="lm-shell">
+        <div class="lm-showcase" aria-hidden="true">
+          <div class="lm-showcase-title">今日工位防线</div>
+          <div class="lm-showcase-art"></div>
+          <div class="lm-showcase-row">
+            <div class="lm-unit lm-unit-plant"></div>
+            <div class="lm-vs">VS</div>
+            <div class="lm-unit lm-unit-zombie"></div>
+          </div>
+        </div>
+        <div class="lm-grid" id="lm-grid"></div>
+      </div>`;
     root.appendChild(menu);
     this.menu = menu;
     this.grid = menu.querySelector('#lm-grid');

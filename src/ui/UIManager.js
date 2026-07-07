@@ -1,5 +1,6 @@
 import { PLANT_TYPES } from '../entities/Plant.js';
 import { getCardIcon } from '../assets/icons.js';
+import { getCardArt, getEnemyArt } from '../assets/cardArt.js';
 
 /**
  * UI 管理器：资源条、血条、倒计时、卡片栏、牛头弹窗、道具系统UI。
@@ -84,6 +85,7 @@ export class UIManager {
         <div class="card-name">${c.name}</div>
         <div class="card-cost">${costText}</div>
         <div class="card-cd hidden"></div>`;
+      this._applyCardArt(card, c.type);
       // 植物卡片用拖拽，技能卡片用点击
       if (!c.isSkill && !c.isUlt && !c.isTicket) {
         card.draggable = true;
@@ -256,6 +258,13 @@ export class UIManager {
   onStart(cb) { this.startBtn.addEventListener('click', () => { this.hideOverlay(); cb(); }); }
   _handleCardClick(type) { if (this.onCardClick) this.onCardClick(type); }
 
+  _applyCardArt(card, type) {
+    const art = getCardArt(type);
+    if (!art) return;
+    card.classList.add('has-card-art');
+    card.style.setProperty('--card-art', `url("${art}")`);
+  }
+
   /** 动态替换卡片栏(关卡切换时调用) */
   setCards(cardsConfig) {
     this.cardsConfig = cardsConfig;
@@ -302,6 +311,7 @@ export class UIManager {
         <div class="card-name">${c.name}</div>
         <div class="card-cost">${costText}</div>
         <div class="card-cd hidden"></div>`;
+      this._applyCardArt(card, c.type);
       if (!c.isSkill && !c.isUlt && !c.isTicket) {
         card.draggable = true;
         card.addEventListener('dragstart', (e) => this._onCardDragStart(e, c.type));
@@ -380,8 +390,19 @@ export class UIManager {
   }
 
   /** 显示波次来临横幅 */
-  showWaveBanner(waveNum, totalWaves, text) {
-    this.waveBanner.innerHTML = `第 ${waveNum}/${totalWaves} 波<span class="wave-sub">${text}</span>`;
+  showWaveBanner(waveNum, totalWaves, text, enemyType = null) {
+    const enemyArt = getEnemyArt(enemyType);
+    this.waveBanner.classList.toggle('has-wave-art', Boolean(enemyArt));
+    if (enemyArt) this.waveBanner.style.setProperty('--wave-art', `url("${enemyArt}")`);
+    else this.waveBanner.style.removeProperty('--wave-art');
+    this.waveBanner.innerHTML = `
+      <div class="wave-banner-body">
+        ${enemyArt ? '<div class="wave-avatar"></div>' : ''}
+        <div class="wave-copy">
+          <div class="wave-title">第 ${waveNum}/${totalWaves} 波</div>
+          <span class="wave-sub">${text}</span>
+        </div>
+      </div>`;
     this.waveBanner.classList.add('show');
     clearTimeout(this._waveBannerTimer);
     this._waveBannerTimer = setTimeout(() => this.waveBanner.classList.remove('show'), 2200);

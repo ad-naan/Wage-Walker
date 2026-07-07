@@ -28,6 +28,19 @@
   - 用途：Three.js 棋盘、工位基地、房区入口运行时贴图。
   - 来源：从 `src/assets/art/tile-kit-generated.png` 裁剪。
 
+- `src/assets/cards/frame-plant.png`
+- `src/assets/cards/frame-skill.png`
+- `src/assets/cards/frame-ult.png`
+- `src/assets/cards/frame-ticket.png`
+- `src/assets/cards/frame-special.png`
+  - 用途：底部卡牌框。
+  - 来源：从 `src/assets/art/ui-kit-generated.png` 裁剪。
+
+- `src/assets/cards/icon-sunflower.png`
+- `src/assets/cards/icon-client-zombie.png`
+  - 用途：选关展示、卡牌头像。
+  - 来源：分别从 `plant-sunflower-portrait.png` 和 `zombie-client-portrait.png` 裁剪缩放。
+
 ## 当前已接入外部素材
 
 - Kenney UI Pack 2.0: https://kenney.nl/assets/ui-pack
@@ -85,3 +98,32 @@
 已有：向日葵社畜、甲方僵尸。
 
 仍建议补齐：PPT射手、996坚果墙、行政审批员、KPI僵尸、老板僵尸、工贼老板。
+
+推荐逐张生成，保存到 `src/assets/art/`：
+
+```text
+低多边形 3D 休闲塔防游戏角色立绘，一个【角色名】，职场荒诞喜剧风格，完整身体，正面 3/4 视角，居中构图，清晰轮廓，适合卡牌图标和游戏菜单展示。成熟手游资产质感，和“穿西装的疲惫向日葵社畜、紫色背景职场僵尸”保持同一风格。纯色渐变背景，角色无遮挡，不要文字，不要 logo，不要水印。
+```
+
+角色名替换：
+
+- PPT射手：蓝色西装打工人植物，手持/肩扛 PPT 文档发射器，表情专注但疲惫。
+- 996坚果墙：厚重坚果墙植物，穿小西装，黑眼圈，疲惫坚韧，肉盾感。
+- 行政审批员：植物化办公室审批员，拿红色公章和文件夹，严肃、动作像盖章。
+- KPI僵尸：红色西装职场僵尸，胸前/手里有绩效图表，压迫感但仍可爱。
+- 老板僵尸：金色西装老板僵尸，有旋转光环/领带/雪茄，体型更大。
+- 工贼老板：暗色西装的阴险职场僵尸，拿背刺文件或举报信，狡猾表情。
+## 运行时素材接入约定
+
+- 卡牌和敌人波次头像统一在 `src/assets/cardArt.js` 注册。
+- 目前已接入：
+  - `sunflower` -> `src/assets/cards/icon-sunflower.png`
+  - `client` -> `src/assets/cards/icon-client-zombie.png`
+- 后续新增角色立绘后，先裁成 1:1 头像放入 `src/assets/cards/`，再在 `CARD_ART` 或 `ENEMY_ART` 里加一行映射即可。
+- 建议新增文件名：
+  - `icon-peashooter.png`
+  - `icon-wallnut.png`
+  - `icon-auditor.png`
+  - `icon-kpi-zombie.png`
+  - `icon-boss-zombie.png`
+  - `icon-traitor-zombie.png`
