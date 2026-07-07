@@ -14,10 +14,18 @@ export class InteractionSystem {
     this._chargeStart = 0;
 
     game.canvas.addEventListener('pointerdown', (e) => this._onPointerDown(e));
+    game.canvas.addEventListener('pointermove', (e) => this._onPointerMove(e));
+    game.canvas.addEventListener('pointerleave', () => this._clearPlacementPreview());
     game.canvas.addEventListener('pointerup', (e) => this._onPointerUp(e));
 
     // 拖拽放置植物：卡片拖到 canvas 上释放
-    game.canvas.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+    game.canvas.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      const type = e.dataTransfer.getData('text/plain') || game.ui._dragType;
+      this._updatePlacementPreview(e, type);
+    });
+    game.canvas.addEventListener('dragleave', () => this._clearPlacementPreview());
     game.canvas.addEventListener('drop', (e) => this._onDrop(e));
   }
 
@@ -44,6 +52,7 @@ export class InteractionSystem {
     g.selectedCard = type;
     this._tryPlant(row, col);
     g.ui._dragType = null;
+    this._clearPlacementPreview();
   }
 
   _setMouse(e) {
@@ -64,6 +73,7 @@ export class InteractionSystem {
       const tile = hits[0].object;
       const { row, col } = tile.userData;
       this._tryPlant(row, col);
+      this._clearPlacementPreview();
       return;
     }
 
@@ -85,6 +95,15 @@ export class InteractionSystem {
         if (ghost) { g.eventSystem.smashGhost(ghost); return; }
       }
     }
+  }
+
+  _onPointerMove(e) {
+    const g = this.game;
+    if (!g.running || !g.selectedCard) {
+      this._clearPlacementPreview();
+      return;
+    }
+    this._updatePlacementPreview(e, g.selectedCard);
   }
 
   _onPointerUp() {
@@ -152,6 +171,36 @@ export class InteractionSystem {
     g.audio.play('plant');
     g.ui.clearSelection();
     g.selectedCard = null;
+    this._clearPlacementPreview();
+  }
+
+  _updatePlacementPreview(e, type) {
+    const g = this.game;
+    if (!g.running || !type) {
+      this._clearPlacementPreview();
+      return;
+    }
+    const cfg = PLANT_TYPES[type];
+    if (!cfg || cfg.isSkill || cfg.isUlt || cfg.isTicket) {
+      this._clearPlacementPreview();
+      return;
+    }
+    this._setMouse(e);
+    const hits = this.raycaster.intersectObjects(g.grid.getTileMeshes());
+    if (hits.length === 0) {
+      this._clearPlacementPreview();
+      return;
+    }
+    const { row, col } = hits[0].object.userData;
+    const cost = g.items.isUltMoyu() ? 0 : cfg.cost;
+    const valid = !g.grid.isOccupied(row, col)
+      && g.clock >= (g.cardCooldowns[type] || 0)
+      && (cost === 0 || g.resource.canAfford(cost));
+    g.grid.showPlacementPreview(row, col, valid);
+  }
+
+  _clearPlacementPreview() {
+    this.game.grid.clearPlacementPreview();
   }
 
   _findGhostFromObject(obj, ghosts) {

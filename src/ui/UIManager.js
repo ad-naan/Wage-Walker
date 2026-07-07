@@ -92,6 +92,7 @@ export class UIManager {
       if (!c.isSkill && !c.isUlt && !c.isTicket) {
         card.draggable = true;
         card.addEventListener('dragstart', (e) => this._onCardDragStart(e, c.type));
+        card.addEventListener('click', () => this._handleCardClick(c.type));
       } else {
         card.addEventListener('click', () => this._handleCardClick(c.type));
       }
@@ -370,6 +371,7 @@ export class UIManager {
       if (!c.isSkill && !c.isUlt && !c.isTicket) {
         card.draggable = true;
         card.addEventListener('dragstart', (e) => this._onCardDragStart(e, c.type));
+        card.addEventListener('click', () => this._handleCardClick(c.type));
       } else {
         card.addEventListener('click', () => this._handleCardClick(c.type));
       }

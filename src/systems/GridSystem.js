@@ -22,6 +22,7 @@ export class GridSystem {
     this.materials = this.createMaterials();
     this.buildGrid();
     this.buildLandmarks();
+    this.buildPlacementPreview();
   }
 
   createTexture(url) {
@@ -49,6 +50,47 @@ export class GridSystem {
       desk: new THREE.MeshLambertMaterial({ color: 0x8a6746 }),
       monitor: new THREE.MeshLambertMaterial({ color: 0x26354f }),
     };
+  }
+
+  buildPlacementPreview() {
+    this.previewGroup = new THREE.Group();
+    this.previewGroup.visible = false;
+
+    const planeGeo = new THREE.PlaneGeometry(this.cell * 0.92, this.cell * 0.92);
+    this.previewFill = new THREE.Mesh(
+      planeGeo,
+      new THREE.MeshBasicMaterial({
+        color: 0x8eff6a,
+        transparent: true,
+        opacity: 0.22,
+        depthWrite: false,
+      })
+    );
+    this.previewFill.rotation.x = -Math.PI / 2;
+    this.previewFill.position.y = 0.06;
+    this.previewGroup.add(this.previewFill);
+
+    const edgeMat = new THREE.MeshBasicMaterial({
+      color: 0x8eff6a,
+      transparent: true,
+      opacity: 0.9,
+      depthWrite: false,
+    });
+    this.previewEdges = [];
+    const edgeLen = this.cell * 0.86;
+    const edgeThick = 0.045;
+    for (let i = 0; i < 4; i++) {
+      const horizontal = i < 2;
+      const geo = new THREE.BoxGeometry(horizontal ? edgeLen : edgeThick, 0.035, horizontal ? edgeThick : edgeLen);
+      const edge = new THREE.Mesh(geo, edgeMat.clone());
+      edge.position.y = 0.09;
+      edge.position.x = horizontal ? 0 : (i === 2 ? -edgeLen / 2 : edgeLen / 2);
+      edge.position.z = horizontal ? (i === 0 ? -edgeLen / 2 : edgeLen / 2) : 0;
+      this.previewEdges.push(edge);
+      this.previewGroup.add(edge);
+    }
+
+    this.group.add(this.previewGroup);
   }
 
   buildGrid() {
@@ -221,6 +263,22 @@ export class GridSystem {
     const t = this.getTile(row, col);
     if (!t) return;
     t.mesh.material.color.setHex(on ? 0x9fff6a : t.baseColor);
+  }
+
+  showPlacementPreview(row, col, valid) {
+    const tile = this.getTile(row, col);
+    if (!tile || !this.previewGroup) return;
+    const pos = this.gridToWorld(row, col);
+    const color = valid ? 0x8eff6a : 0xff5d6c;
+    this.previewGroup.position.set(pos.x, 0, pos.z);
+    this.previewGroup.visible = true;
+    this.previewFill.material.color.setHex(color);
+    this.previewEdges.forEach((edge) => edge.material.color.setHex(color));
+    this.previewFill.material.opacity = valid ? 0.22 : 0.18;
+  }
+
+  clearPlacementPreview() {
+    if (this.previewGroup) this.previewGroup.visible = false;
   }
 
   /** 提供给 Raycaster 检测的地块网格列表 */
