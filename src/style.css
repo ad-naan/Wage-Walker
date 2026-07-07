@@ -409,10 +409,10 @@ body.hammer-mode #game-canvas { cursor: crosshair; }
   background:
     linear-gradient(180deg, rgba(255,255,255,.08), transparent 25%),
     linear-gradient(180deg, rgba(74,54,32,.92), rgba(23,17,11,.96));
-  border: 1px solid rgba(247,201,72,.34); border-radius: 8px; padding: 16px 12px;
+  border: 1px solid rgba(247,201,72,.34); border-radius: 8px; padding: 14px 12px 12px;
   cursor: pointer; color: #fff; transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
   display: flex; flex-direction: column; align-items: center; text-align: center;
-  min-height: 162px; box-shadow: 0 14px 30px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.12);
+  min-height: 214px; box-shadow: 0 14px 30px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.12);
 }
 .lm-card:hover { transform: translateY(-5px); border-color: rgba(255,224,138,.78); box-shadow: 0 20px 34px rgba(0,0,0,.42), 0 0 24px rgba(247,201,72,.22); }
 .lm-card:hover::before { content: ''; position: absolute; width: 22px; height: 22px; right: 8px; top: 8px; background: url('./assets/vendor/kenney-ui-pack/png/star-yellow.png') center/contain no-repeat; filter: drop-shadow(0 2px 2px rgba(0,0,0,.45)); }
@@ -423,7 +423,36 @@ body.hammer-mode #game-canvas { cursor: crosshair; }
 .lm-card-num { font-size: 11px; color: rgba(102,199,217,.78); font-weight: 800; }
 .lm-card-name { font-size: 17px; font-weight: 900; color: #ffe08a; margin: 3px 0 5px; }
 .lm-card-desc { font-size: 11px; color: rgba(255,241,218,.66); line-height: 1.45; min-height: 34px; }
-.lm-card-waves { font-size: 11px; color: #91e28a; margin-top: auto; padding: 3px 10px; border: 1px solid rgba(145,226,138,.22); border-radius: 999px; background: rgba(8,20,9,.36); }
+.lm-card-meta { display: flex; gap: 6px; justify-content: center; margin: 7px 0 5px; flex-wrap: wrap; }
+.lm-card-meta span {
+  font-size: 10px; color: #91e28a; padding: 3px 8px; border: 1px solid rgba(145,226,138,.22);
+  border-radius: 999px; background: rgba(8,20,9,.36); font-weight: 800;
+}
+.lm-card-enemies { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; min-height: 22px; margin-bottom: 7px; }
+.lm-card-enemies span {
+  font-size: 10px; color: rgba(255,214,196,.86); padding: 3px 6px; border-radius: 5px;
+  background: rgba(116,34,28,.38); border: 1px solid rgba(233,91,79,.2);
+}
+.lm-card-unlocks, .lm-card-special {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 5px; flex-wrap: wrap;
+  font-size: 10px; color: rgba(255,241,218,.76); margin-top: 5px;
+}
+.lm-card-unlocks b, .lm-card-special b {
+  color: rgba(102,199,217,.9); font-size: 10px; font-weight: 900;
+}
+.lm-card-unlocks span {
+  color: #ffe08a; padding: 2px 6px; border-radius: 5px; background: rgba(247,201,72,.1); border: 1px solid rgba(247,201,72,.18);
+}
+.lm-card-unlocks.muted { color: rgba(255,241,218,.48); }
+.lm-card-special {
+  margin-top: auto; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.08);
+}
+.lm-card-special span { color: rgba(255,241,218,.9); }
+.lm-card-special em {
+  font-style: normal; color: #17110b; padding: 2px 6px; border-radius: 5px;
+  background: #f2b735 url('./assets/vendor/kenney-ui-pack/png/button-yellow.png') center/100% 100% no-repeat;
+  font-weight: 900;
+}
 
 /* ===== 关卡结算弹窗 ===== */
 #level-result {
@@ -578,7 +607,7 @@ body.hammer-mode #game-canvas { cursor: crosshair; }
   .lm-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); max-width: 460px; }
   .lm-shell { grid-template-columns: 1fr; width: min(100%, 620px); }
   .lm-showcase { display: none; }
-  .lm-card { min-height: 148px; }
+  .lm-card { min-height: 204px; }
 }
 
 @media (max-width: 540px) {

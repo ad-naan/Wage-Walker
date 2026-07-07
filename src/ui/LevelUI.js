@@ -1,4 +1,6 @@
 import { LEVELS } from '../levels/LevelConfig.js';
+import { PLANT_TYPES } from '../entities/Plant.js';
+import { ZOMBIE_TYPES } from '../entities/Zombie.js';
 
 /**
  * 关卡UI：选关界面 + 关卡结算弹窗。
@@ -62,12 +64,19 @@ export class LevelUI {
       const locked = lv.id > this.levelSystem.maxUnlocked;
       const card = document.createElement('div');
       card.className = 'lm-card' + (locked ? ' locked' : '');
+      const threat = this._levelThreat(lv);
       card.innerHTML = `
         <div class="lm-card-icon">${locked ? '🔒' : lv.icon}</div>
         <div class="lm-card-num">第 ${lv.id} 关</div>
         <div class="lm-card-name">${lv.name}</div>
         <div class="lm-card-desc">${locked ? '通关上一关解锁' : lv.desc}</div>
-        <div class="lm-card-waves">${lv.waves.length} 波</div>`;
+        <div class="lm-card-meta">
+          <span>${lv.waves.length} 波</span>
+          <span>${locked ? '未解锁' : threat.label}</span>
+        </div>
+        ${locked ? '' : `<div class="lm-card-enemies">${threat.enemies.map((e) => `<span>${e}</span>`).join('')}</div>`}
+        ${locked ? '' : this._levelUnlocksHtml(lv)}
+        ${locked ? '' : this._levelSpecialHtml(lv)}`;
       if (!locked) {
         card.addEventListener('click', () => {
           if (this.onStartLevel) this.onStartLevel(lv.id);
@@ -75,6 +84,44 @@ export class LevelUI {
       }
       this.grid.appendChild(card);
     }
+  }
+
+  _levelThreat(level) {
+    const scoreByType = { client: 1, kpi: 2, boss: 4, traitor: 5, super_traitor: 8 };
+    const seen = new Set();
+    let score = 0;
+    for (const wave of level.waves) {
+      for (const group of wave.zombies) {
+        seen.add(group.type);
+        score += (scoreByType[group.type] || 1) * (group.count || 1) * (group.hpMul || 1);
+      }
+    }
+    const label = score >= 46 ? '高压' : score >= 26 ? '紧张' : '入门';
+    return {
+      label,
+      enemies: [...seen].map((type) => this._enemyName(type)).slice(0, 4),
+    };
+  }
+
+  _levelUnlocksHtml(level) {
+    if (!level.unlocks || level.unlocks.length === 0) return '<div class="lm-card-unlocks muted">通关奖励：最终考核</div>';
+    const items = level.unlocks.map((type) => `<span>${this._itemName(type)}</span>`).join('');
+    return `<div class="lm-card-unlocks"><b>解锁</b>${items}</div>`;
+  }
+
+  _levelSpecialHtml(level) {
+    if (!level.special) return '';
+    return `
+      <div class="lm-card-special">
+        <b>特供</b>
+        <span>${level.special.name}</span>
+        <em>${level.special.limit} 次</em>
+      </div>`;
+  }
+
+  _enemyName(type) {
+    if (type === 'super_traitor') return '超级大老板';
+    return ZOMBIE_TYPES[type]?.name || type;
   }
 
   /**
@@ -122,6 +169,7 @@ export class LevelUI {
   }
 
   _itemName(type) {
+    if (PLANT_TYPES[type]?.name) return PLANT_TYPES[type].name;
     const names = {
       wallnut: '996坚果墙', hammer: '换鱼锤', auditor: '行政审批员', tiaoxiu: '调休单护盾',
       shield: '甩锅盾牌', read: '已读不回', coffee: '续命咖啡', mine: '带薪拉屎地雷',
