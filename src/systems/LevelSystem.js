@@ -57,6 +57,7 @@ export class LevelSystem {
     this.waveSpawnQueue = [];
     this.specialUses = 0;
     this.waveCleared = false;
+    this.game.ui.updateWaveCountdown(this.waveTimer, '开局');
     return this.currentLevel;
   }
 
@@ -70,6 +71,7 @@ export class LevelSystem {
     // 波次倒计时
     if (this.waveTimer > 0) {
       this.waveTimer -= dt;
+      game.ui.updateWaveCountdown(this.waveTimer, this.currentWaveIndex < 0 ? '开局' : '下一波');
       if (this.waveTimer <= 0) {
         this._startNextWave(game);
       }
@@ -113,6 +115,7 @@ export class LevelSystem {
     }
     game.ui.toast(`第 ${this.currentWaveIndex + 1}/${this.currentLevel.waves.length} 波来活儿了！`);
     game.ui.updateWaveProgress(this.currentWaveIndex + 1, this.currentLevel.waves.length);
+    game.ui.updateWaveCountdown(null);
     // 波次横幅特效
     const waveNum = this.currentWaveIndex + 1;
     const totalWaves = this.currentLevel.waves.length;

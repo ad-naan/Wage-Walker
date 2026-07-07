@@ -48,6 +48,7 @@ export class UIManager {
         <span class="stat-label">第</span>
         <span class="stat-value" id="wave-display" style="color:#8effc1">0</span>
         <span class="stat-label" id="wave-total">/0</span>
+        <span id="wave-countdown" class="wave-countdown ready">准备中</span>
         <span class="stat-label">波</span>
       </div>
       <div class="stat-block" id="enemy-count-block">
@@ -447,6 +448,18 @@ export class UIManager {
   }
 
   /** 显示波次来临横幅 */
+  updateWaveCountdown(seconds, label = '下一波') {
+    const el = document.getElementById('wave-countdown');
+    if (!el) return;
+    if (seconds == null) {
+      el.textContent = '交战中';
+      el.className = 'wave-countdown active';
+      return;
+    }
+    el.textContent = `${label} ${Math.max(0, Math.ceil(seconds))}s`;
+    el.className = seconds <= 3 ? 'wave-countdown danger' : 'wave-countdown ready';
+  }
+
   showWaveBanner(waveNum, totalWaves, text, enemyType = null) {
     const enemyArt = getEnemyArt(enemyType);
     this.waveBanner.classList.toggle('has-wave-art', Boolean(enemyArt));
