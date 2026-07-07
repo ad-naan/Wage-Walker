@@ -458,6 +458,7 @@ class Game {
       if (this._useUlt(type)) {
         this.rage -= cfg.rageCost;
         this.ui.setRage(this.rage, CFG.RAGE_MAX);
+        this.ui.showStatDelta('rage-text', -cfg.rageCost, 'rage');
       }
       return;
     }
@@ -468,6 +469,7 @@ class Game {
       if (this._useTicket(type)) {
         this.tickets -= cfg.ticketCost;
         this.ui.updateTickets(this.tickets);
+        this.ui.showStatDelta('ticket-value', -cfg.ticketCost, 'ticket');
       }
       return;
     }
@@ -798,6 +800,7 @@ class Game {
   onZombieKilled(zombie) {
     this.rage = Math.min(CFG.RAGE_MAX, this.rage + CFG.RAGE_PER_KILL);
     this.ui.setRage(this.rage, CFG.RAGE_MAX);
+    this.ui.showStatDelta('rage-text', CFG.RAGE_PER_KILL, 'rage');
     // 连击系统：3秒内连续击杀
     this.killStreak++;
     this.streakTimer = 3;
@@ -816,6 +819,7 @@ class Game {
     if (Math.random() < CFG.TICKET_DROP_CHANCE) {
       this.tickets++;
       this.ui.updateTickets(this.tickets);
+      this.ui.showStatDelta('ticket-value', 1, 'ticket');
       const p = zombie.mesh.position.clone(); p.y += 1.5;
       this.effects.spawnFloatText(this.grid.group, p, '+🎫', '#c9a0ff');
     }

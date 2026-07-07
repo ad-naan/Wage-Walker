@@ -509,6 +509,21 @@ export class UIManager {
   updateBaseHp(ratio) { document.getElementById('base-hp-bar').style.width = Math.max(0, ratio * 100) + '%'; }
   updateEnemyCount(v) { const el = document.getElementById('enemy-count'); if (el) el.textContent = v; }
   updateScore(v) { const el = document.getElementById('score-value'); if (el) el.textContent = v; }
+  showStatDelta(targetId, amount, tone = 'gain') {
+    if (!amount) return;
+    const target = document.getElementById(targetId);
+    const root = document.getElementById('ui-root');
+    if (!target || !root) return;
+    const rect = target.getBoundingClientRect();
+    const el = document.createElement('div');
+    const positive = amount > 0;
+    el.className = `hud-delta ${positive ? 'gain' : 'loss'} ${tone}`;
+    el.textContent = `${positive ? '+' : ''}${amount}`;
+    el.style.left = `${rect.left + rect.width / 2}px`;
+    el.style.top = `${rect.top + rect.height / 2}px`;
+    root.appendChild(el);
+    setTimeout(() => el.remove(), 900);
+  }
   toast(msg) {
     this.toastEl.textContent = msg;
     this.toastEl.classList.add('show');

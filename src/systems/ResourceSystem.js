@@ -19,6 +19,7 @@ export class ResourceSystem {
 
   add(amount) {
     this.value += amount;
+    this.ui.showStatDelta('resource-value', amount, 'resource');
   }
 
   canAfford(amount) {
@@ -28,6 +29,7 @@ export class ResourceSystem {
   spend(amount) {
     if (this.value < amount) return false;
     this.value -= amount;
+    this.ui.showStatDelta('resource-value', -amount, 'resource');
     return true;
   }
 
@@ -40,7 +42,7 @@ export class ResourceSystem {
     this._passiveTimer += dt;
     if (this._passiveTimer >= this._passiveInterval) {
       this._passiveTimer = 0;
-      this.value += 5;
+      this.add(5);
     }
     // displayValue 缓动追随 value
     const diff = this.value - this.displayValue;
